@@ -17,11 +17,13 @@ inputs = glob.glob("*." + raw_ext)
 
 # Ignore file can contain either full *.fits filenames to ignore,
 # or just the base part of the scan.
+ignore_files = ['../files.ignore','cal_failures.list']
 ignores = []
-try:
-    ignores = [x.strip() for x in open('../files.ignore').readlines()]
-except:
-    pass
+for fname in ignore_files:
+    try: 
+        ignores.extend([x.strip() for x in open(fname).readlines()])
+    except: 
+        pass
 
 # Strip out any ignored files
 inputs = [x for x in inputs if x not in ignores]
@@ -140,7 +142,7 @@ for r in rcvrnames:
         print "\n# Calibration for receiver '%s':" % (r)
         print string.join(calib_files)+": %."+ext+": %.rf | cf "+ dbfile
         print "\tpac -Ta"+c+" -e "+ext+" -d "+dbfile + " $<"
-        print "\tpaz -m -E2.0 " + z + " $@"
+        print "\ttest -e $@ && paz -m -E2.0 " + z + " $@ || echo $* >> cal_failures.list"
         targets['all'].extend(calib_files)
 
 all_calib_scans = []
