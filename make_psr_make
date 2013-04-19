@@ -109,41 +109,59 @@ targets['all'].extend(map(lambda x: x+'.rf', psrscans))
 for sc in psrscans:
     targets[sc+'.rf'] = sorted([x for x in inputs if sc in x])
 
+# Per-receiver zap commands (args to paz)
+stdzap_gbt = '-F "794.6 798.6" -F "814.1 820.7" -F "1100 1150" -F "1250 1262" -F "1288 1300" -F "1373 1381" -F "1442 1447" -F "1525 1558" -F "1575 1577" -F "1615 1630" -F "1370 1385"'
+stdzap_ao = '-F "380 420" -F "446 480" -F "980 1150" -F "1618 1630" -F "1880 2050"'
+zap_swide = '-F "1600 1770" -F "1880 2050" -F "2400 2600"'
+zap = {'Rcvr1_2':stdzap_gbt, 'Rcvr_800':stdzap_gbt, '327':stdzap_ao,
+        '430':stdzap_ao, 'L-wide':stdzap_ao, 'S-wide':zap_swide,
+        'default':''}
+
 # Calibrated files
 # Note these depend on fluxcals also but we'll ignore that for now.
 # Also note that we don't track which specific cal files each scan
 # depends on.  Instead, the 'order-only' cf prereq makes sure all the
 # cal scans are processed before any psr scans are calibrated.
-# TODO need to deal with per-receiver zap ranges since L and S 
-# overlap at Arecibo...
-print "%.x.calib: %.rf | cf " + dbfile + "\n\tpac -Tax -e x.calib -d " + dbfile + " $<"
-stdzap_gbt = 'paz -m -E 2.0 -F "794.6 798.6" -F "814.1 820.7" -F "1100 1150" -F "1250 1262" -F "1288 1300" -F "1373 1381" -F "1442 1447" -F "1525 1558" -F "1575 1577" -F "1615 1630" -F "1370 1385" $@'
-stdzap_ao = 'paz -m -E 2.0 -F "380 420" -F "446 480" -F "980 1150" -F "1618 1630" -F "1880 2050" $@'
-stdzap = stdzap_ao # TODO fix me!
-print "\t" + stdzap
-all_calib_files = map(lambda x: x+'.x', psrscans)
+cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
+calib_files = {}
+calib_scans = {}
+for r in rcvrnames:
+    if r in cal_methods.keys(): cm = cal_methods[r]
+    else: cm = cal_methods['default']
+    if r in zap.keys(): z = zap[r]
+    else: z = zap['default']
+    for c in cm:
+        ext = c + ".calib"
+        calib_scans[r] = map(lambda x: x+'.'+c, rcvrscans[r])
+        calib_files[r] = map(lambda x: x+'.'+ext, rcvrscans[r])
+        print "\n# Calibration for receiver '%s':" % (r)
+        print string.join(calib_files[r])+": %."+ext+": %.rf | cf "+ dbfile
+        print "\tpac -Ta"+c+" -e "+ext+" -d "+dbfile + " $<"
+        print "\tpaz -m -E2.0 " + z + " $@"
+        targets['all'].extend(calib_files[r])
 
-# PCM-calibrated files, only for L-band so far
-print "%.S.calib: %.rf | cf " + dbfile + "\n\tpac -TaS -e S.calib -d " + dbfile + " $<"
-print "\t" + stdzap
-if rcvrscans.has_key('Rcvr1_2'):
-    all_calib_files.extend(map(lambda x: x+'.S', rcvrscans['Rcvr1_2']))
-
-# Add all calibrated files to final target list
-targets['all'].extend(map(lambda x: x+'.calib', all_calib_files))
+# TODO: rename to all_calib_scans
+all_calib_files = []
+for r in rcvrnames: all_calib_files.extend(calib_scans[r])
 
 # Extra zapping
-print "%.zap: %.calib\n\tpsrsh -e zap ../zap_minmax $<"
+print "\n%.zap: %.calib\n\tpsrsh -e zap ../zap_minmax $<"
 targets['all'].extend(map(lambda x: x+'.zap', all_calib_files))
 
 # Normalize by off-pulse RMS
-print "%.norm: %.zap\n\tnormalize_rms $<"
+print "\n%.norm: %.zap\n\tnormalize_rms $<"
 targets['all'].extend(map(lambda x: x+'.norm', all_calib_files))
 
-# Make final partly scrunched version for TOAs
-#print "%.ff: %.norm\n\tpam -e ff -f8 -t8 $<"
-print "%.ff: %.norm\n\tpam -e ff --setnchn=64 -t8 $<"
-targets['all'].extend(map(lambda x: x+'.ff', all_calib_files))
+# Make final partly scrunched version for TOAs, different scrunch
+# per rcvr
+fscrunch_arg = {'327':'', '430':'', 'Rcvr_800':'-f2', 'Rcvr1_2':'-f8', 
+        'L-wide':'-f8', 'S-wide':'-f8', 'default':'--setnchn=64'}
+for r in rcvrnames:
+    try:
+        print "\n%.ff: %.norm\n\tpam -e ff "+fscrunch_arg[r]+" -t8 $<"
+    except KeyError:
+        print "\n%.ff: %.norm\n\tpam -e ff --setnchn=64 -t8 $<"
+    targets['all'].extend(map(lambda x: x+'.ff', all_calib_files))
 
 # Generate template files and TOAs.
 # This will currently regenerate all TOAs anytime anything changes..
@@ -151,10 +169,9 @@ print "%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@"
 print "%.sm: %\n\tpsrsmooth -W -t UD8 $<"
 print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\tpat -f princeton -s $^ >> $@"
 for r in rcvrnames:
-    calmthds = ['x']
-    if (r=='Rcvr1_2'):
-        calmthds = ['x','S']
-    for c in calmthds:
+    if r in cal_methods.keys(): cm = cal_methods[r]
+    else: cm = cal_methods['default']
+    for c in cm:
         tmpl = '%s.%s.%s.sum' % (srcname,r,c)
         tmpl_sm = tmpl + '.sm'
         targets['templates'].append(tmpl)
@@ -166,5 +183,6 @@ for r in rcvrnames:
         targets[toa] = map(lambda x: x+'.'+c+'.ff', rcvrscans[r])
 
 # Print all the dependencies
+print "\n# Dependencies:"
 for t in targets.keys():
     print t + ": " + string.join(targets[t])
