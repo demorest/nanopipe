@@ -40,6 +40,7 @@ scans = list(set(map(basename,inputs)))
 scans = [x for x in scans if x not in ignores]
 
 # Separate into cal and psr
+# TODO do this in the psrchive-based loop below rather than by filename
 calscans = [x for x in scans if 'cal' in x]
 psrscans = [x for x in scans if not 'cal' in x]
 
@@ -123,45 +124,47 @@ zap = {'Rcvr1_2':stdzap_gbt, 'Rcvr_800':stdzap_gbt, '327':stdzap_ao,
 # depends on.  Instead, the 'order-only' cf prereq makes sure all the
 # cal scans are processed before any psr scans are calibrated.
 cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
-calib_files = {}
 calib_scans = {}
 for r in rcvrnames:
     if r in cal_methods.keys(): cm = cal_methods[r]
     else: cm = cal_methods['default']
     if r in zap.keys(): z = zap[r]
     else: z = zap['default']
+    calib_scans[r] = []
     for c in cm:
         ext = c + ".calib"
-        calib_scans[r] = map(lambda x: x+'.'+c, rcvrscans[r])
-        calib_files[r] = map(lambda x: x+'.'+ext, rcvrscans[r])
+        calib_scans[r].extend(map(lambda x: x+'.'+c, rcvrscans[r]))
+        calib_files = map(lambda x: x+'.'+ext, rcvrscans[r])
         print "\n# Calibration for receiver '%s':" % (r)
-        print string.join(calib_files[r])+": %."+ext+": %.rf | cf "+ dbfile
+        print string.join(calib_files)+": %."+ext+": %.rf | cf "+ dbfile
         print "\tpac -Ta"+c+" -e "+ext+" -d "+dbfile + " $<"
         print "\tpaz -m -E2.0 " + z + " $@"
-        targets['all'].extend(calib_files[r])
+        targets['all'].extend(calib_files)
 
-# TODO: rename to all_calib_scans
-all_calib_files = []
-for r in rcvrnames: all_calib_files.extend(calib_scans[r])
+all_calib_scans = []
+for r in rcvrnames: all_calib_scans.extend(calib_scans[r])
 
 # Extra zapping
 print "\n%.zap: %.calib\n\tpsrsh -e zap ../zap_minmax $<"
-targets['all'].extend(map(lambda x: x+'.zap', all_calib_files))
+targets['all'].extend(map(lambda x: x+'.zap', all_calib_scans))
 
 # Normalize by off-pulse RMS
 print "\n%.norm: %.zap\n\tnormalize_rms $<"
-targets['all'].extend(map(lambda x: x+'.norm', all_calib_files))
+targets['all'].extend(map(lambda x: x+'.norm', all_calib_scans))
 
 # Make final partly scrunched version for TOAs, different scrunch
 # per rcvr
 fscrunch_arg = {'327':'', '430':'', 'Rcvr_800':'-f2', 'Rcvr1_2':'-f8', 
         'L-wide':'-f8', 'S-wide':'-f8', 'default':'--setnchn=64'}
 for r in rcvrnames:
+    files = map(lambda x: x+'.ff', calib_scans[r])
     try:
-        print "\n%.ff: %.norm\n\tpam -e ff "+fscrunch_arg[r]+" -t8 $<"
+        print string.join(files) \
+                + " %.ff: %.norm\n\tpam -e ff "+fscrunch_arg[r]+" -t8 $<"
     except KeyError:
-        print "\n%.ff: %.norm\n\tpam -e ff --setnchn=64 -t8 $<"
-    targets['all'].extend(map(lambda x: x+'.ff', all_calib_files))
+        print string.join(files) \
+                + " %.ff: %.norm\n\tpam -e ff --setnchn=64 -t8 $<"
+    targets['all'].extend(files)
 
 # Generate template files and TOAs.
 # This will currently regenerate all TOAs anytime anything changes..
