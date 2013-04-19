@@ -158,12 +158,9 @@ fscrunch_arg = {'327':'', '430':'', 'Rcvr_800':'-f2', 'Rcvr1_2':'-f8',
         'L-wide':'-f8', 'S-wide':'-f8', 'default':'--setnchn=64'}
 for r in rcvrnames:
     files = map(lambda x: x+'.ff', calib_scans[r])
-    try:
-        print string.join(files) \
-                + " %.ff: %.norm\n\tpam -e ff "+fscrunch_arg[r]+" -t8 $<"
-    except KeyError:
-        print string.join(files) \
-                + " %.ff: %.norm\n\tpam -e ff --setnchn=64 -t8 $<"
+    if r in fscrunch_arg.keys(): f = fscrunch_arg[r]
+    else: f = fscrunch_arg['default']
+    print string.join(files)+" %.ff: %.norm\n\tpam -e ff "+f+" -t8 $<"
     targets['all'].extend(files)
 
 # Generate template files and TOAs.
