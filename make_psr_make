@@ -5,19 +5,54 @@
 #  guppi_56249_J1713+0747_0004_0001.fits
 #  guppi_56249_J1713+0747_0006_cal_0001.fits
 
+#######################################################################
+# Configuration section
+#######################################################################
+
+# Filename extensions of the raw input files
+raw_ext = "fits"
+
+# Log any calibration failures in this file
+cal_fail = 'cal_failures.list'
+
+# Files containing list of files and/or scans to ignore
+ignore_files = ['../files.ignore', cal_fail]
+
+# Standard zap commands (paz arguments) to apply per receiver
+# 'default' is applied to any reciever not listed
+zap = {
+        'Rcvr1_2':'-F "1100 1150" -F "1250 1262" -F "1288 1300" -F "1373 1381" -F "1442 1447" -F "1525 1558" -F "1575 1577" -F "1615 1630" -F "1370 1385"',
+        'Rcvr_800':'-F "794.6 798.6" -F "814.1 820.7"',
+        '327':'',
+        '430':'-F "380 420" -F "446 480"',
+        'L-wide':'-F "980 1150" -F "1618 1630"',
+        'S-wide':'-F "1600 1770" -F "1880 2050" -F "2400 2600"',
+        'default':''
+    }
+
+# Calibration method (pac options) to apply for each receiver
+# Multiple options per reciever can be specified.
+# 'default' is applied for receivers not explicitly listed. 
+cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
+
+# Frequency scrunch commands (pam options) to apply in order
+# to reduce the data to the final resolution desired for TOAs.
+fscrunch_arg = {'327':'', '430':'', 'Rcvr_800':'-f2', 'Rcvr1_2':'-f8', 
+        'L-wide':'-f8', 'S-wide':'-f8', 'default':'--setnchn=64'}
+
+#######################################################################
+# End of config section
+#######################################################################
+
 import os, sys, glob, string
 import psrchive
 
-# TODO: make a configuration section here at the top
-
 # List of original input files, they are assumed to all have the 
 # given extension.
-raw_ext = "fits"
 inputs = glob.glob("*." + raw_ext)
 
 # Ignore file can contain either full *.fits filenames to ignore,
 # or just the base part of the scan.
-ignore_files = ['../files.ignore','cal_failures.list']
 ignores = []
 for fname in ignore_files:
     try: 
@@ -27,6 +62,10 @@ for fname in ignore_files:
 
 # Strip out any ignored files
 inputs = [x for x in inputs if x not in ignores]
+
+def get(d,k,default='default'):
+    if k in d.keys(): return d[k]
+    else: return d[default]
 
 # Return the 'base' part of file name
 def basename(full):
@@ -114,26 +153,15 @@ targets['all'].extend(map(lambda x: x+'.rf', psrscans))
 for sc in psrscans:
     targets[sc+'.rf'] = sorted([x for x in inputs if sc in x])
 
-# Per-receiver zap commands (args to paz)
-stdzap_gbt = '-F "794.6 798.6" -F "814.1 820.7" -F "1100 1150" -F "1250 1262" -F "1288 1300" -F "1373 1381" -F "1442 1447" -F "1525 1558" -F "1575 1577" -F "1615 1630" -F "1370 1385"'
-stdzap_ao = '-F "380 420" -F "446 480" -F "980 1150" -F "1618 1630" -F "1880 2050"'
-zap_swide = '-F "1600 1770" -F "1880 2050" -F "2400 2600"'
-zap = {'Rcvr1_2':stdzap_gbt, 'Rcvr_800':stdzap_gbt, '327':stdzap_ao,
-        '430':stdzap_ao, 'L-wide':stdzap_ao, 'S-wide':zap_swide,
-        'default':''}
-
 # Calibrated files
 # Note these depend on fluxcals also but we'll ignore that for now.
 # Also note that we don't track which specific cal files each scan
 # depends on.  Instead, the 'order-only' cf prereq makes sure all the
 # cal scans are processed before any psr scans are calibrated.
-cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
 calib_scans = {}
 for r in rcvrnames:
-    if r in cal_methods.keys(): cm = cal_methods[r]
-    else: cm = cal_methods['default']
-    if r in zap.keys(): z = zap[r]
-    else: z = zap['default']
+    cm = get(cal_methods,r)
+    z = get(zap,r)
     calib_scans[r] = []
     for c in cm:
         ext = c + ".calib"
@@ -142,7 +170,7 @@ for r in rcvrnames:
         print "\n# Calibration for receiver '%s':" % (r)
         print string.join(calib_files)+": %."+ext+": %.rf | cf "+ dbfile
         print "\tpac -Ta"+c+" -e "+ext+" -d "+dbfile + " $<"
-        print "\ttest -e $@ && paz -m -E2.0 " + z + " $@ || echo $* >> cal_failures.list"
+        print "\ttest -e $@ && paz -m -E2.0 " + z + " $@ || echo $* >> " + cal_fail
         targets['all'].extend(calib_files)
 
 all_calib_scans = []
@@ -158,12 +186,9 @@ targets['all'].extend(map(lambda x: x+'.norm', all_calib_scans))
 
 # Make final partly scrunched version for TOAs, different scrunch
 # per rcvr
-fscrunch_arg = {'327':'', '430':'', 'Rcvr_800':'-f2', 'Rcvr1_2':'-f8', 
-        'L-wide':'-f8', 'S-wide':'-f8', 'default':'--setnchn=64'}
 for r in rcvrnames:
     files = map(lambda x: x+'.ff', calib_scans[r])
-    if r in fscrunch_arg.keys(): f = fscrunch_arg[r]
-    else: f = fscrunch_arg['default']
+    f = get(fscrunch_arg,r)
     print string.join(files)+": %.ff: %.norm\n\tpam -e ff "+f+" -t8 $<"
     targets['all'].extend(files)
 
@@ -173,8 +198,7 @@ print "%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@"
 print "%.sm: %\n\tpsrsmooth -W -t UD8 $<"
 print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\tpat -f princeton -s $^ >> $@"
 for r in rcvrnames:
-    if r in cal_methods.keys(): cm = cal_methods[r]
-    else: cm = cal_methods['default']
+    cm = get(cal_methods,r)
     for c in cm:
         tmpl = '%s.%s.%s.sum' % (srcname,r,c)
         tmpl_sm = tmpl + '.sm'
