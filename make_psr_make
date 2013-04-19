@@ -8,6 +8,8 @@
 import os, sys, glob, string
 import psrchive
 
+# TODO: make a configuration section here at the top
+
 # List of original input files, they are assumed to all have the 
 # given extension.
 raw_ext = "fits"
@@ -160,7 +162,7 @@ for r in rcvrnames:
     files = map(lambda x: x+'.ff', calib_scans[r])
     if r in fscrunch_arg.keys(): f = fscrunch_arg[r]
     else: f = fscrunch_arg['default']
-    print string.join(files)+" %.ff: %.norm\n\tpam -e ff "+f+" -t8 $<"
+    print string.join(files)+": %.ff: %.norm\n\tpam -e ff "+f+" -t8 $<"
     targets['all'].extend(files)
 
 # Generate template files and TOAs.
