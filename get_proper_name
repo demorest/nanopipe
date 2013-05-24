@@ -35,18 +35,20 @@ psrnames = [
     "J2145-0750",
     ]
 
+def get_proper_name(filename):
+
+    name_in_file = psrchive.Archive_load(fname).get_source()
+
+    for psr in psrnames:
+        if psr.find(name_in_file) != -1:
+            return psr
+
+    # Fall back on orig name
+    return name_in_file
+
 import sys
 try:
     fname = sys.argv[1]
+    print get_proper_name(fname)
 except:
     sys.exit(1)
-
-name_in_file = psrchive.Archive_load(fname).get_source()
-
-for psr in psrnames:
-    if psr.find(name_in_file) != -1:
-        print psr
-        sys.exit(0)
-
-# Fall back on orig name
-print name_in_file
