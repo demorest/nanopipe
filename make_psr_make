@@ -70,11 +70,22 @@ def get(d,k,default='default'):
 # Return the 'base' part of file name
 def basename(full):
     noext = full.replace('.'+raw_ext,'')
+    if noext.find('uppi') == -1:
+        return noext
     parts = noext.split('_')
     if parts[4] == 'cal': 
         return noext
     else: 
         return string.join(parts[0:4],'_')
+
+def fullname(base):
+    if base.find('uppi') == -1:
+        return base + '.' + raw_ext
+    else:
+        if base.find('cal') == -1:
+            return base + "_0001." + raw_ext
+        else:
+            return base + '.' + raw_ext
 
 # List of unique base filenames (eg, scans)
 scans = list(set(map(basename,inputs)))
@@ -82,20 +93,22 @@ scans = list(set(map(basename,inputs)))
 # Strip out ignored scans
 scans = [x for x in scans if x not in ignores]
 
-# Separate into cal and psr
-# TODO do this in the psrchive-based loop below rather than by filename
-calscans = [x for x in scans if 'cal' in x]
-psrscans = [x for x in scans if not 'cal' in x]
-
-# Get some info about scans
+# Separate into cal and psr, get any necessary info
 psrchive.Profile.no_amps.fset(True)
+calscans = []
+psrscans = []
 rcvrs = {}
-for sc in psrscans:
-    rcvrs[sc] = psrchive.Archive_load(sc+"_0001."+raw_ext).get_receiver_name()
+for sc in scans:
+    arch = psrchive.Archive_load(fullname(sc))
+    if arch.get_type() == "PolnCal":
+        calscans.append(sc)
+    elif arch.get_type == "Pulsar":
+        psrscans.append(sc)
+        rcvrs[sc] = arch.get_receiver_name()
 
 # Assume for now that all files are of a single source
 # Get it from the first file in the list
-srcname = psrchive.Archive_load(psrscans[0]+"_0001."+raw_ext).get_source()
+srcname = psrchive.Archive_load(inputs[0]).get_source()
 
 # Lists of psr scans by recvr
 rcvrscans = {}
