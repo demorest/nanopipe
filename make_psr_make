@@ -40,6 +40,10 @@ cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
 fscrunch_arg = {'327':'', '430':'', 'Rcvr_800':'-f2', 'Rcvr1_2':'-f8', 
         'L-wide':'-f8', 'S-wide':'-f8', 'default':'--setnchn=64'}
 
+tscrunch_arg = "-j 'T x8'"
+
+zap_script = "../zap_minmax"
+
 # Allow any of these to be redefined in a local config file
 try:
     execfile('../make_psr_make.config.py')
@@ -173,7 +177,7 @@ print dbfile + ": " + string.join(cfs) + "\n\tpac -w -p .."
 targets['all'].append(dbfile)
 
 # Make the combined .rf files
-print "%.rf:\n\tpsradd -j 'T x8' -j \"e name=`get_proper_name $^`\" -o $@ $^"
+print "%.rf:\n\tpsradd " + tscrunch_arg + " -j \"e name=`get_proper_name $^`\" -o $@ $^"
 targets['all'].extend(map(lambda x: x+'.rf', psrscans))
 for sc in psrscans:
     targets[sc+'.rf'] = sorted([x for x in inputs if sc in x])
@@ -202,7 +206,7 @@ all_calib_scans = []
 for r in rcvrnames: all_calib_scans.extend(calib_scans[r])
 
 # Extra zapping
-print "\n%.zap: %.calib\n\tpsrsh -e zap ../zap_minmax $<"
+print "\n%.zap: %.calib\n\tpsrsh -e zap " + zap_script + " $<"
 targets['all'].extend(map(lambda x: x+'.zap', all_calib_scans))
 
 # Normalize by off-pulse RMS
