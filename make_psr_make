@@ -78,6 +78,7 @@ def basename(full):
     else: 
         return string.join(parts[0:4],'_')
 
+# Return the full filename for 1st file in scan set
 def fullname(base):
     if base.find('uppi') == -1:
         return base + '.' + raw_ext
@@ -102,13 +103,16 @@ for sc in scans:
     arch = psrchive.Archive_load(fullname(sc))
     if arch.get_type() == "PolnCal":
         calscans.append(sc)
-    elif arch.get_type == "Pulsar":
+    elif arch.get_type() == "Pulsar":
         psrscans.append(sc)
         rcvrs[sc] = arch.get_receiver_name()
 
 # Assume for now that all files are of a single source
 # Get it from the first file in the list
-srcname = psrchive.Archive_load(inputs[0]).get_source()
+# Same for backend
+arch = psrchive.Archive_load(inputs[0])
+srcname = arch.get_source()
+backend = arch.get_backend_name()
 
 # Lists of psr scans by recvr
 rcvrscans = {}
@@ -213,13 +217,13 @@ print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\tpat -f princeton -s $^ >> $@"
 for r in rcvrnames:
     cm = get(cal_methods,r)
     for c in cm:
-        tmpl = '%s.%s.%s.sum' % (srcname,r,c)
+        tmpl = '%s.%s.%s.%s.sum' % (srcname,r,backend,c)
         tmpl_sm = tmpl + '.sm'
         targets['templates'].append(tmpl)
         targets['templates'].append(tmpl_sm)
         targets[tmpl] = map(lambda x: x+'.'+c+'.ff', rcvrscans[r])
 
-        toa = '%s.%s.%s.tim' % (srcname,r,c)
+        toa = '%s.%s.%s.%s.tim' % (srcname,r,backend,c)
         targets['toas'].append(toa)
         targets[toa] = map(lambda x: x+'.'+c+'.ff', rcvrscans[r])
 
