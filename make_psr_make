@@ -40,9 +40,15 @@ cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
 fscrunch_arg = {'327':'', '430':'', 'Rcvr_800':'-f2', 'Rcvr1_2':'-f8', 
         'L-wide':'-f8', 'S-wide':'-f8', 'default':'--setnchn=64'}
 
+# Initial tscrunching (or other processing) to do when combining
+# raw files.
 tscrunch_arg = "-j 'T x8'"
 
+# Name of the rfi-zapping script to call
 zap_script = "../zap_minmax"
+
+# Format as understood by "pat -f" for TOAs.
+toa_format = "tempo2 IPTA"
 
 # Allow any of these to be redefined in a local config file
 try:
@@ -225,7 +231,7 @@ for r in rcvrnames:
 # This will currently regenerate all TOAs anytime anything changes..
 print "%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@"
 print "%.sm: %\n\tpsrsmooth -W -t UD8 $<"
-print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\tpat -f princeton -s $^ >> $@"
+print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\tpat -f \"" + toa_format + "\" -s $^ >> $@"
 for r in rcvrnames:
     cm = get(cal_methods,r)
     for c in cm:
