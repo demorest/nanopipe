@@ -1,8 +1,14 @@
 #! /usr/bin/env python
+import string
 
 # load psrchive, set it to not load full data from the files
 import psrchive
 psrchive.Profile.no_amps.fset(True)
+
+# Read in the name lists
+datadir = '/data1/demorest/src/make_psr_make' # TODO fix me up
+psrbnames = map(string.rstrip,open(datadir+'/psrbnames.dat').readlines())
+psrjnames = map(string.rstrip,open(datadir+'/psrjnames.dat').readlines())
 
 # The list of official names
 psrnames = [
@@ -37,11 +43,15 @@ psrnames = [
 
 def get_proper_name(filename):
 
-    name_in_file = psrchive.Archive_load(fname).get_source()
+    name_in_file = psrchive.Archive_load(filename).get_source()
 
-    for psr in psrnames:
-        if psr.find(name_in_file) != -1:
-            return psr
+    # TODO catch any special cases (eg known name errors) here
+
+    # Look for a match in the lists
+    for namelist in (psrbnames, psrjnames, psrnames):
+        for psr in namelist:
+            if psr.find(name_in_file) != -1:
+                return psr
 
     # Fall back on orig name
     return name_in_file
