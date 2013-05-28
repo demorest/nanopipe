@@ -104,6 +104,16 @@ def fullname(base):
         else:
             return base + '.' + raw_ext
 
+# Return whether a given input file is part of a given scan
+def scan_match(base,full):
+    if 'uppi' in base and not 'cal' in base:
+        if 'cal' in full:
+            return False
+        else:
+            return base in full
+    else:
+        return base in full
+
 # List of unique base filenames (eg, scans)
 scans = list(set(map(basename,inputs)))
 
@@ -187,10 +197,10 @@ print dbfile + ": " + string.join(cfs) + "\n\tpac -w -p .."
 targets['calibration'].append(dbfile)
 
 # Make the combined .rf files
-print "%.rf:\n\tpsradd " + tscrunch_arg + " -j \"e name=`get_proper_name $^`\" -o $@ $^"
+print "%.rf:\n\tpsradd " + tscrunch_arg + " -j \"e name=`get_proper_name $<`\" -o $@ $^"
 targets['calibration'].extend(map(lambda x: x+'.rf', psrscans))
 for sc in psrscans:
-    targets[sc+'.rf'] = sorted([x for x in inputs if sc in x])
+    targets[sc+'.rf'] = sorted([x for x in inputs if scan_match(sc,x)])
 
 # Calibrated files
 # Note these depend on fluxcals also but we'll ignore that for now.
