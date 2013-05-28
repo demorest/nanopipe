@@ -45,7 +45,9 @@ def get_proper_name(filename):
 
     name_in_file = psrchive.Archive_load(filename).get_source()
 
-    # TODO catch any special cases (eg known name errors) here
+    # Catch any special cases (eg known name errors) here
+    if '0645+5150' in name_in_file:
+        return 'J0645+5158'
 
     # Look for a match in the lists
     for namelist in (psrbnames, psrjnames, psrnames):
