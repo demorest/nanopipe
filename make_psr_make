@@ -148,7 +148,7 @@ print """# NOTE:
 # Source name '%s'
 #
 # To generate calibrated files:
-#    make -f Make.psr
+#    make -f Make.psr calibration
 # To generate templates for timing:
 #    make -f Make.psr templates
 # To generate toas:
@@ -228,7 +228,7 @@ targets['calibration'].extend(map(lambda x: x+'.norm', all_calib_scans))
 for r in rcvrnames:
     files = map(lambda x: x+'.ff', calib_scans[r])
     f = get(fscrunch_arg,r)
-    print string.join(files)+": %.ff: %.norm\n\tpam -e ff "+f+" -t8 $<"
+    print string.join(files)+": %.ff: %.norm\n\tpam -e ff "+f+" -T $<"
     targets['calibration'].extend(files)
 
 # Generate template files and TOAs.
@@ -243,7 +243,9 @@ for r in rcvrnames:
         tmpl_sm = tmpl + '.sm'
         targets['templates'].append(tmpl)
         targets['templates'].append(tmpl_sm)
-        targets[tmpl] = map(lambda x: x+'.'+c+'.ff', rcvrscans[r])
+        # Note: I think we only want to regenerate templates when it is
+        # explicitly asked for.
+        #targets[tmpl] = map(lambda x: x+'.'+c+'.ff', rcvrscans[r])
 
         toa = '%s.%s.%s.%s.tim' % (srcname,r,backend,c)
         targets['toas'].append(toa)
