@@ -185,7 +185,7 @@ print cal_fail + ": "
 print "\t" + "touch " + cal_fail
 
 # Make the tscrunched cal files with cf extension
-print "%.cf: %." + raw_ext + "\n\tpam -e cf -T $<"
+print "%.cf: %." + raw_ext + "\n\tpam -e cf -T --name `get_proper_name $<` $<"
 cfs = map(lambda x: x+'.cf', calscans)
 print ".PHONY: all cf calibration templates toas"
 targets['cf'] = cfs
@@ -197,7 +197,10 @@ print dbfile + ": " + string.join(cfs) + "\n\tpac -w -p .."
 targets['calibration'].append(dbfile)
 
 # Make the combined .rf files
-print "%.rf:\n\tpsradd " + tscrunch_arg + " -j \"e name=`get_proper_name $<`\" -o $@ $^"
+parfile = srcname + ".basic.par"
+if os.path.exists(parfile): epharg = " -j 'install par " + parfile + "'"
+else: epharg = ""
+print "%.rf:\n\tpsradd" + epharg + " " + tscrunch_arg + " -j \"e name=`get_proper_name $<`\" -o $@ $^"
 targets['calibration'].extend(map(lambda x: x+'.rf', psrscans))
 for sc in psrscans:
     targets[sc+'.rf'] = sorted([x for x in inputs if scan_match(sc,x)])
