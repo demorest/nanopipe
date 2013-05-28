@@ -157,34 +157,38 @@ print """# NOTE:
 # (-j, -k, and other standard make options can be used as desired)
 """ % (os.getcwd(), srcname)
 
-# Makefile targets
+# Makefile targets - each has a list of prereqs
 targets = {}
-targets['all'] = []
+targets['calibration'] = []
 targets['templates'] = []
 targets['toas'] = []
-print ".DEFAULT_GOAL := all"
+targets['all'] = ['calibration', 'templates', 'toas']
+print ".DEFAULT_GOAL := calibration"
 
 # Update the makefile
 mfile = 'Make.psr'
 makemake = '../make_psr_make'
-print mfile + ": *." + raw_ext + " " + makemake
+print mfile + ": *." + raw_ext + " " + makemake + " " + cal_fail
 print "\t" + makemake + " > $@"
+
+print cal_fail + ": "
+print "\t" + "touch " + cal_fail
 
 # Make the tscrunched cal files with cf extension
 print "%.cf: %." + raw_ext + "\n\tpam -e cf -T $<"
 cfs = map(lambda x: x+'.cf', calscans)
-print ".PHONY: all cf templates toas"
+print ".PHONY: all cf calibration templates toas"
 targets['cf'] = cfs
-targets['all'].append('cf')
+targets['calibration'].append('cf')
 dbfile = "../database.txt"
 
 # Update the psrchive cal database
 print dbfile + ": " + string.join(cfs) + "\n\tpac -w -p .."
-targets['all'].append(dbfile)
+targets['calibration'].append(dbfile)
 
 # Make the combined .rf files
 print "%.rf:\n\tpsradd " + tscrunch_arg + " -j \"e name=`get_proper_name $^`\" -o $@ $^"
-targets['all'].extend(map(lambda x: x+'.rf', psrscans))
+targets['calibration'].extend(map(lambda x: x+'.rf', psrscans))
 for sc in psrscans:
     targets[sc+'.rf'] = sorted([x for x in inputs if sc in x])
 
@@ -206,18 +210,18 @@ for r in rcvrnames:
         print string.join(calib_files)+": %."+ext+": %.rf | cf "+ dbfile
         print "\tpac -Ta"+c+" -e "+ext+" -d "+dbfile + " $<"
         print "\ttest -e $@ && paz -m -E2.0 " + z + " $@ || echo $* >> " + cal_fail
-        targets['all'].extend(calib_files)
+        targets['calibration'].extend(calib_files)
 
 all_calib_scans = []
 for r in rcvrnames: all_calib_scans.extend(calib_scans[r])
 
 # Extra zapping
 print "\n%.zap: %.calib\n\tpsrsh -e zap " + zap_script + " $<"
-targets['all'].extend(map(lambda x: x+'.zap', all_calib_scans))
+targets['calibration'].extend(map(lambda x: x+'.zap', all_calib_scans))
 
 # Normalize by off-pulse RMS
 print "\n%.norm: %.zap\n\tnormalize_rms $<"
-targets['all'].extend(map(lambda x: x+'.norm', all_calib_scans))
+targets['calibration'].extend(map(lambda x: x+'.norm', all_calib_scans))
 
 # Make final partly scrunched version for TOAs, different scrunch
 # per rcvr
@@ -225,7 +229,7 @@ for r in rcvrnames:
     files = map(lambda x: x+'.ff', calib_scans[r])
     f = get(fscrunch_arg,r)
     print string.join(files)+": %.ff: %.norm\n\tpam -e ff "+f+" -t8 $<"
-    targets['all'].extend(files)
+    targets['calibration'].extend(files)
 
 # Generate template files and TOAs.
 # This will currently regenerate all TOAs anytime anything changes..
