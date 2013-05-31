@@ -47,8 +47,19 @@ tscrunch_arg = "-j 'T x8'"
 # Name of the rfi-zapping script to call
 zap_script = "../zap_minmax"
 
+# Final tscrunch pam arg for TOAs (.ff files)
+#final_tscrunch = "-T"
+# This version evenly divides into ~30 min long subints
+final_tscrunch = "--setnsub `psredit -Q -c length $< | awk '{print int($$2/1800.0) + 1}'`"
+
+# Specify templates from a different backend
+template_be = ""
+
 # Format as understood by "pat -f" for TOAs.
 toa_format = "tempo2 IPTA"
+
+# Any addtional args for pat
+toa_args = "-C chan"
 
 # Allow any of these to be redefined in a local config file
 try:
@@ -241,14 +252,19 @@ targets['calibration'].extend(map(lambda x: x+'.norm', all_calib_scans))
 for r in rcvrnames:
     files = map(lambda x: x+'.ff', calib_scans[r])
     f = get(fscrunch_arg,r)
-    print string.join(files)+": %.ff: %.norm\n\tpam -e ff "+f+" -T $<"
+    print string.join(files)+": %.ff: %.norm\n\tpam -e ff "+f+" "+final_tscrunch+ " $<"
     targets['calibration'].extend(files)
 
 # Generate template files and TOAs.
 # This will currently regenerate all TOAs anytime anything changes..
 print "%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@"
 print "%.sm: %\n\tpsrsmooth -W -t UD8 $<"
-print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\tpat -f \"" + toa_format + "\" -s $^ >> $@"
+if template_be=="":
+    print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\tpat " + toa_args + " -f \"" + toa_format + "\" -s $^ >> $@"
+else:
+    cms = list(set(reduce(lambda x,y: x+y, cal_methods.values())))
+    for c in cms:
+        print ("%%.%s.%s.tim: %%.%s.%s.sum.sm\n\techo 'MODE 1' > $@\n\tpat " % (backend,c,template_be,c)) + toa_args + " -f \"" + toa_format + "\" -s $^ >> $@"
 for r in rcvrnames:
     cm = get(cal_methods,r)
     for c in cm:
@@ -257,8 +273,14 @@ for r in rcvrnames:
         targets['templates'].append(tmpl)
         targets['templates'].append(tmpl_sm)
         # Note: I think we only want to regenerate templates when it is
-        # explicitly asked for.
+        # explicitly asked for.  This depend list works with the rule
+        # given above.
         #targets[tmpl] = map(lambda x: x+'.'+c+'.ff', rcvrscans[r])
+        # Instead, use a explicit rule for each template
+        profiles = map(lambda x: x+'.'+c+'.ff', rcvrscans[r])
+        print tmpl + ":"
+        print "\tautotoa -g0.1 -i3 -S $@ " + string.join(profiles) \
+                + "\n\tpam -r0.5 -m $@"
 
         toa = '%s.%s.%s.%s.tim' % (srcname,r,backend,c)
         targets['toas'].append(toa)
