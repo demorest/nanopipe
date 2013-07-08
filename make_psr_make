@@ -111,7 +111,7 @@ def fullname(base):
         return base + '.' + raw_ext
     else:
         if base.find('cal') == -1:
-            return base + "_0001." + raw_ext
+            return (sorted(glob.glob(base + "_????." + raw_ext)))[0]
         else:
             return base + '.' + raw_ext
 
@@ -197,6 +197,7 @@ print "\t" + "touch " + cal_fail
 
 # Make the tscrunched cal files with cf extension
 print "%.cf: %." + raw_ext + "\n\tpam -e cf -T --name `get_proper_name $<` $<"
+print "\ttest -e $@ || echo $* >> " + cal_fail
 cfs = map(lambda x: x+'.cf', calscans)
 print ".PHONY: all cf calibration templates toas"
 targets['cf'] = cfs
@@ -232,8 +233,8 @@ for r in rcvrnames:
         calib_files = map(lambda x: x+'.'+ext, rcvrscans[r])
         print "\n# Calibration for receiver '%s':" % (r)
         print string.join(calib_files)+": %."+ext+": %.rf | cf "+ dbfile
-        print "\tpac -Ta"+c+" -e "+ext+" -d "+dbfile + " $<"
-        print "\ttest -e $@ && paz -m -E2.0 " + z + " $@ || echo $* >> " + cal_fail
+        print "\ttest -e $< && (pac -Ta"+c+" -e "+ext+" -d "+dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* >> " + cal_fail 
+        print "\ttest -e $@ && (paz -m -E2.0 " + z + " $@; rm $@.pac.log) || echo $* >> " + cal_fail
         targets['calibration'].extend(calib_files)
 
 all_calib_scans = []
