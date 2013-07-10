@@ -3,7 +3,6 @@ import string
 
 # load psrchive, set it to not load full data from the files
 import psrchive
-psrchive.Profile.no_amps.fset(True)
 
 # Read in the name lists
 datadir = '/data1/demorest/src/nanopipe' # TODO fix me up
@@ -61,7 +60,10 @@ def proper_name(name):
     return name
 
 def get_proper_name(filename):
+    no_amps_bak = psrchive.Profile.no_amps.fget()
+    psrchive.Profile.no_amps.fset(True)
     name_in_file = psrchive.Archive_load(filename).get_source().strip()
+    psrchive.Profile.no_amps.fset(no_amps_bak)
     return proper_name(name_in_file)
 
 if __name__=="__main__":
