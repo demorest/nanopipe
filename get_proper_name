@@ -6,7 +6,7 @@ import psrchive
 psrchive.Profile.no_amps.fset(True)
 
 # Read in the name lists
-datadir = '/data1/demorest/src/make_psr_make' # TODO fix me up
+datadir = '/data1/demorest/src/nanopipe' # TODO fix me up
 psrbnames = map(string.rstrip,open(datadir+'/psrbnames.dat').readlines())
 psrjnames = map(string.rstrip,open(datadir+'/psrjnames.dat').readlines())
 
@@ -41,30 +41,33 @@ psrnames = [
     "J2145-0750",
     ]
 
-def get_proper_name(filename):
-
-    name_in_file = psrchive.Archive_load(filename).get_source()
+def proper_name(name):
 
     # Catch any special cases (eg known name errors) here
-    if '0645+5150' in name_in_file:
+    if '0645+5150' in name:
         return 'J0645+5158'
-    if '1910+1257' in name_in_file:
+    if '1910+1257' in name:
         return 'J1910+1256'
-    if '1853+1308' in name_in_file:
+    if '1853+1308' in name:
         return 'J1853+1303'
 
     # Look for a match in the lists
     for namelist in (psrbnames, psrjnames, psrnames):
         for psr in namelist:
-            if psr.find(name_in_file) != -1:
+            if psr.find(name) != -1:
                 return psr
 
     # Fall back on orig name
-    return name_in_file
+    return name
 
-import sys
-try:
-    fname = sys.argv[1]
-    print get_proper_name(fname)
-except:
-    sys.exit(1)
+def get_proper_name(filename):
+    name_in_file = psrchive.Archive_load(filename).get_source().strip()
+    return proper_name(name_in_file)
+
+if __name__=="__main__":
+    import sys
+    try:
+        fname = sys.argv[1]
+        print get_proper_name(fname)
+    except:
+        sys.exit(1)
