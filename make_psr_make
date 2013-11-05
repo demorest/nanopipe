@@ -12,6 +12,9 @@
 # Filename extensions of the raw input files
 raw_ext = "fits"
 
+# Processing version suffix
+ver_id = "8y"
+
 # Log any calibration failures in this file
 cal_fail = 'cal_failures.list'
 
@@ -48,9 +51,9 @@ tscrunch_arg = "-j 'T x8'"
 zap_script = "../zap_minmax"
 
 # Final tscrunch pam arg for TOAs (.ff files)
-#final_tscrunch = "-T"
-# This version evenly divides into ~30 min long subints
-final_tscrunch = "--setnsub `psredit -Q -c length $< | awk '{print int($$2/1800.0) + 1}'`"
+final_tscrunch = "" # Overrides the pam argument
+max_tscrunch = 1800.0 # Maximum tscrunch in seconds
+max_pbfrac = 0.02 # Maximum fraction of an orbit to tscrunch
 
 # Specify templates from a different backend
 template_be = ""
@@ -59,7 +62,7 @@ template_be = ""
 toa_format = "tempo2 IPTA"
 
 # Any addtional args for pat
-toa_args = "-C chan"
+toa_args = "-A FDM -e mcmc=0 -C chan -C subint -C snr"
 
 # Allow any of these to be redefined in a local config file
 try:
@@ -73,6 +76,7 @@ except IOError:
 
 import os, sys, glob, string
 import psrchive
+import get_proper_name
 
 # List of original input files, they are assumed to all have the 
 # given extension.
@@ -121,9 +125,9 @@ def scan_match(base,full):
         if 'cal' in full:
             return False
         else:
-            return base in full
+            return base.replace('.'+ver_id,'') in full
     else:
-        return base in full
+        return base.replace('.'+ver_id,'') in full
 
 # List of unique base filenames (eg, scans)
 scans = list(set(map(basename,inputs)))
@@ -147,17 +151,27 @@ for sc in scans:
 # Assume for now that all files are of a single source
 # Get it from the first file in the list
 # Same for backend
-# TODO make get_proper_name a library func..
-arch = psrchive.Archive_load(inputs[0])
-#srcname = arch.get_source()
-srcname = os.popen('get_proper_name ' + inputs[0]).read().rstrip()
+arch = psrchive.Archive_load(fullname(psrscans[0]))
+srcname = get_proper_name.proper_name(arch.get_source().strip())
 backend = arch.get_backend_name()
+
+# Set the maximum tscrunch time based on binary period
+try:
+    pb_sec = float(arch.get_ephemeris().get_value('PB').replace('D','e'))*86400.0
+except ValueError:
+    pb_sec = 0.0
+if pb_sec > 0:
+    max_tscrunch = min(pb_sec*max_pbfrac, max_tscrunch)
+
+# Append version id to each scan name
+calscans = map(lambda x: x+'.'+ver_id, calscans)
+psrscans = map(lambda x: x+'.'+ver_id, psrscans)
 
 # Lists of psr scans by recvr
 rcvrscans = {}
 rcvrnames = list(set(rcvrs.values()))
 for r in rcvrnames:
-    rcvrscans[r] = [x for x in psrscans if rcvrs[x]==r]
+    rcvrscans[r] = [x for x in psrscans if rcvrs[x.replace('.'+ver_id,'')]==r]
 
 # Print an informative Makefile header
 print """# NOTE:
@@ -188,7 +202,7 @@ print ".DEFAULT_GOAL := calibration"
 
 # Update the makefile
 mfile = 'Make.psr'
-makemake = '../make_psr_make'
+makemake = __file__
 print mfile + ": *." + raw_ext + " " + makemake + " " + cal_fail
 print "\t" + makemake + " > $@"
 
@@ -196,7 +210,7 @@ print cal_fail + ": "
 print "\t" + "touch " + cal_fail
 
 # Make the tscrunched cal files with cf extension
-print "%.cf: %." + raw_ext + "\n\tpam -e cf -T --name `get_proper_name $<` $<"
+print "%."+ver_id+".cf: %." + raw_ext + ("\n\tpam -e %s.cf -T --name `get_proper_name $<` $<" % ver_id)
 print "\ttest -e $@ || echo $* >> " + cal_fail
 cfs = map(lambda x: x+'.cf', calscans)
 print ".PHONY: all cf calibration templates toas"
@@ -212,7 +226,7 @@ targets['calibration'].append(dbfile)
 parfile = srcname + ".basic.par"
 if os.path.exists(parfile): epharg = " -j 'install par " + parfile + "'"
 else: epharg = ""
-print "%.rf:\n\tpsradd" + epharg + " " + tscrunch_arg + " -j \"e name=`get_proper_name $<`\" -o $@ $^"
+print "%."+ver_id+".rf:\n\tpsradd" + epharg + " " + tscrunch_arg + " -j \"e name=`get_proper_name $<`\" -o $@ $^"
 targets['calibration'].extend(map(lambda x: x+'.rf', psrscans))
 for sc in psrscans:
     targets[sc+'.rf'] = sorted([x for x in inputs if scan_match(sc,x)])
@@ -250,6 +264,8 @@ targets['calibration'].extend(map(lambda x: x+'.norm', all_calib_scans))
 
 # Make final partly scrunched version for TOAs, different scrunch
 # per rcvr
+if final_tscrunch == "":
+    final_tscrunch = "--setnsub `psredit -Q -c length $< | awk '{print int($$2/%.1f) + 1}'`" % max_tscrunch
 for r in rcvrnames:
     files = map(lambda x: x+'.ff', calib_scans[r])
     f = get(fscrunch_arg,r)
@@ -260,12 +276,13 @@ for r in rcvrnames:
 # This will currently regenerate all TOAs anytime anything changes..
 print "%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@"
 print "%.sm: %\n\tpsrsmooth -W -t UD8 $<"
+pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '{print $$0,\"-proc " + ver_id + " -pta NANOGrav\"}' >> $@"
 if template_be=="":
-    print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\tpat " + toa_args + " -f \"" + toa_format + "\" -s $^ >> $@"
+    print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\t" + pat_cmd
 else:
     cms = list(set(reduce(lambda x,y: x+y, cal_methods.values())))
     for c in cms:
-        print ("%%.%s.%s.tim: %%.%s.%s.sum.sm\n\techo 'MODE 1' > $@\n\tpat " % (backend,c,template_be,c)) + toa_args + " -f \"" + toa_format + "\" -s $^ >> $@"
+        print ("%%.%s.%s.tim: %%.%s.%s.sum.sm\n\techo 'MODE 1' > $@\n\t" % (backend,c,template_be,c)) + pat_cmd
 for r in rcvrnames:
     cm = get(cal_methods,r)
     for c in cm:
