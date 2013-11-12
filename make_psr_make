@@ -58,11 +58,14 @@ max_pbfrac = 0.02 # Maximum fraction of an orbit to tscrunch
 # Specify templates from a different backend
 template_be = ""
 
+# Specify which cal method should be used for timing template
+template_cal_method = ""
+
 # Format as understood by "pat -f" for TOAs.
 toa_format = "tempo2 IPTA"
 
 # Any addtional args for pat
-toa_args = "-A FDM -e mcmc=0 -C chan -C subint -C snr"
+toa_args = "-A FDM -e mcmc=0 -C chan -C subint -C snr -C wt"
 
 # Allow any of these to be redefined in a local config file
 try:
@@ -160,6 +163,11 @@ try:
     pb_sec = float(arch.get_ephemeris().get_value('PB').replace('D','e'))*86400.0
 except ValueError:
     pb_sec = 0.0
+except RuntimeError:
+    try:
+        pb_sec = pb_table[srcname]*86400.0
+    except:
+        pb_sec = 0.0
 if pb_sec > 0:
     max_tscrunch = min(pb_sec*max_pbfrac, max_tscrunch)
 
@@ -227,7 +235,8 @@ parfile = srcname + ".basic.par"
 if os.path.exists(parfile): epharg = " -j 'install par " + parfile + "'"
 else: epharg = ""
 print "%."+ver_id+".rf:\n\tpsradd" + epharg + " " + tscrunch_arg + " -j \"e name=`get_proper_name $<`\" -o $@ $^"
-targets['calibration'].extend(map(lambda x: x+'.rf', psrscans))
+targets['rf'] = (map(lambda x: x+'.rf', psrscans))
+targets['calibration'].append('rf')
 for sc in psrscans:
     targets[sc+'.rf'] = sorted([x for x in inputs if scan_match(sc,x)])
 
@@ -247,8 +256,8 @@ for r in rcvrnames:
         calib_files = map(lambda x: x+'.'+ext, rcvrscans[r])
         print "\n# Calibration for receiver '%s':" % (r)
         print string.join(calib_files)+": %."+ext+": %.rf | cf "+ dbfile
-        print "\ttest -e $< && (pac -Ta"+c+" -e "+ext+" -d "+dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* >> " + cal_fail 
-        print "\ttest -e $@ && (paz -m -E2.0 " + z + " $@; rm $@.pac.log) || echo $* >> " + cal_fail
+        print "\ttest -e $< && (pac -Ta"+c+" -e "+ext+" -d "+dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail 
+        print "\ttest -e $@ && (paz -m -E2.0 " + z + " $@; rm $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
         targets['calibration'].extend(calib_files)
 
 all_calib_scans = []
@@ -276,17 +285,25 @@ for r in rcvrnames:
 # This will currently regenerate all TOAs anytime anything changes..
 print "%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@"
 print "%.sm: %\n\tpsrsmooth -W -t UD8 $<"
-pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '{print $$0,\"-proc " + ver_id + " -pta NANOGrav\"}' >> $@"
-if template_be=="":
-    print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\t" + pat_cmd
-else:
+pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '/FORMAT/ {print $$0} ! /FORMAT/ {print $$0,\"-proc " + ver_id + " -pta NANOGrav\"}' >> $@"
+## old ver:
+#if template_be=="":
+#    print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\t" + pat_cmd
+#else:
+if template_be=="": template_be=backend
+if True:
     cms = list(set(reduce(lambda x,y: x+y, cal_methods.values())))
     for c in cms:
-        print ("%%.%s.%s.tim: %%.%s.%s.sum.sm\n\techo 'MODE 1' > $@\n\t" % (backend,c,template_be,c)) + pat_cmd
+        if template_cal_method=="": c_tmp=c
+        else: c_tmp = template_cal_method
+        tim_id = "%s.%s.%s" % (backend, ver_id, c)
+        tmp_id = "%s.%s.%s" % (template_be, ver_id, c_tmp)
+        print ("%%.%s.tim: %%.%s.sum.sm\n\techo 'MODE 1' > $@\n\t" % (tim_id,tmp_id)) + pat_cmd
 for r in rcvrnames:
     cm = get(cal_methods,r)
     for c in cm:
-        tmpl = '%s.%s.%s.%s.sum' % (srcname,r,backend,c)
+        id_str = '%s.%s.%s.%s.%s' % (srcname,r,backend,ver_id,c)
+        tmpl = id_str + '.sum'
         tmpl_sm = tmpl + '.sm'
         targets['templates'].append(tmpl)
         targets['templates'].append(tmpl_sm)
@@ -300,7 +317,7 @@ for r in rcvrnames:
         print "\tautotoa -g0.1 -i3 -S $@ " + string.join(profiles) \
                 + "\n\tpam -r0.5 -m $@"
 
-        toa = '%s.%s.%s.%s.tim' % (srcname,r,backend,c)
+        toa = id_str + '.tim'
         targets['toas'].append(toa)
         targets[toa] = map(lambda x: x+'.'+c+'.ff', rcvrscans[r])
 
