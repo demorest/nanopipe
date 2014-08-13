@@ -49,6 +49,8 @@ def proper_name(name):
         return 'J1910+1256'
     if '1853+1308' in name:
         return 'J1853+1303'
+    if '1949+31out' in name:
+        return 'J1949+3106'
 
     # Look for a match in the lists
     for namelist in (psrbnames, psrjnames, psrnames):
