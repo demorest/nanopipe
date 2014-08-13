@@ -132,6 +132,12 @@ def scan_match(base,full):
     else:
         return base.replace('.'+ver_id,'') in full
 
+# Standardize Arecibo receiver names
+def fix_rcvr_name(orig_name):
+    if orig_name == 'lbw': return 'L-wide'
+    elif orig_name == 'sbw': return 'S-wide'
+    else: return orig_name
+
 # List of unique base filenames (eg, scans)
 scans = list(set(map(basename,inputs)))
 
@@ -149,7 +155,7 @@ for sc in scans:
         calscans.append(sc)
     elif arch.get_type() == "Pulsar":
         psrscans.append(sc)
-        rcvrs[sc] = arch.get_receiver_name()
+        rcvrs[sc] = fix_rcvr_name(arch.get_receiver_name())
 
 # Assume for now that all files are of a single source
 # Get it from the first file in the list
@@ -219,6 +225,7 @@ print "\t" + "touch " + cal_fail
 
 # Make the tscrunched cal files with cf extension
 print "%."+ver_id+".cf: %." + raw_ext + ("\n\tpam -e %s.cf -T --name `get_proper_name $<` $<" % ver_id)
+print "\tpsredit -m -c rcvr:name=`fix_receiver_name $@` $@"
 print "\ttest -e $@ || echo $* >> " + cal_fail
 cfs = map(lambda x: x+'.cf', calscans)
 print ".PHONY: all cf calibration templates toas"
@@ -234,7 +241,10 @@ targets['calibration'].append(dbfile)
 parfile = srcname + ".basic.par"
 if os.path.exists(parfile): epharg = " -j 'install par " + parfile + "'"
 else: epharg = ""
-print "%."+ver_id+".rf:\n\tpsradd" + epharg + " " + tscrunch_arg + " -j \"e name=`get_proper_name $<`\" -o $@ $^"
+print "%."+ver_id+".rf:\n\tpsradd" + epharg + " " + tscrunch_arg \
+        + " -j \"e rcvr:name=`fix_receiver_name $<`\"" \
+        + " -j \"e name=`get_proper_name $<`\"" \
+        + " -o $@ $^" 
 targets['rf'] = (map(lambda x: x+'.rf', psrscans))
 targets['calibration'].append('rf')
 for sc in psrscans:
@@ -256,7 +266,7 @@ for r in rcvrnames:
         calib_files = map(lambda x: x+'.'+ext, rcvrscans[r])
         print "\n# Calibration for receiver '%s':" % (r)
         print string.join(calib_files)+": %."+ext+": %.rf | cf "+ dbfile
-        print "\ttest -e $< && (pac -Ta"+c+" -e "+ext+" -d "+dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail 
+        print "\ttest -e $< && (pac -a"+c+" -e "+ext+" -d "+dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail 
         print "\ttest -e $@ && (paz -m -E2.0 " + z + " $@; rm $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
         targets['calibration'].extend(calib_files)
 
