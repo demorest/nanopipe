@@ -1,0 +1,23 @@
+#! /usr/bin/perl
+
+# Reads all YYYY_MM/ subdirs under current dir and makes index files for
+# them.
+
+@files = `ls`;
+$out = "index.dat";
+
+$dir = `pwd`;
+if ($dir =~ /asp/) { $ext = ".asp"; }
+elsif ($dir =~/uppi/) { $ext = ".fits"; }
+elsif ($dir =~/bpp/) { $ext = ".dat"; }
+else { $ext = ""; }
+
+foreach $d (@files) {
+    chomp $d;
+    unless ((-d $d) && ($d=~/^\d\d\d\d_\d\d$/)) { next; }
+    $count = `grep -c '^$d' $out`;
+    chomp $count;
+    if ($count>0) { print "Skipping $d\n"; next; }
+    print "Processing $d\n";
+    system("vap -nR -cname,rcvr,type $d/*$ext >> $out");
+}

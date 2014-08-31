@@ -1,0 +1,68 @@
+#! /usr/bin/perl
+
+# Copies ASP/GASP/etc data matching whatever criteria 
+# to current dir.
+
+$data_base = "/data1/demorest/timing/raw";
+$data_dir{"asp"} =  $data_base . "/arecibo/asp";
+$data_dir{"abpp"} = $data_base . "/arecibo/abpp";
+$data_dir{"wapp"} = $data_base . "/arecibo/wapp";
+$data_dir{"gasp"} =  $data_base . "/gbt/gasp";
+$data_dir{"guppi"} =  $data_base . "/gbt/guppi";
+$data_dir{"guppi2"} =  $data_base . "/gbt/guppi2";
+$data_dir{"puppi"} =  $data_base . "/arecibo/puppi";
+
+unless ($#ARGV>=1) {
+    die "Usage: get_raw_data [-c | -l] backend source (YYYY_MM | rcvr)\n";
+}
+
+$mode="dry";
+if ($ARGV[0] eq "-c") { $mode="copy"; shift @ARGV; }
+if ($ARGV[0] eq "-l") { $mode="link"; shift @ARGV; }
+
+($be,$src_req,@extra) = @ARGV;
+if (defined(@extra)) {
+    foreach $thing (@extra) {
+        if ($thing =~ /\d\d\d\d_\d\d/) { $date = $thing; }
+        else { $rcvr = $thing; }
+    }
+}
+
+unless ($data_dir{$be}) { 
+    die "Unknown backend '$be'\n";
+}
+
+# Read in list of bad files to ignore
+if (open(BAD, $data_dir{$be} . "/bad.dat")) {
+    while (<BAD>) {
+        chomp;
+        s/^\s+//;
+        if (/^#/) { next; }
+        ($file,@comment) = split;
+        push(@badlist,$file);
+    }
+    close BAD;
+}
+
+# open index file
+open (IDX, $data_dir{$be} . "/index.dat") or die "Error opening index file.\n";
+while (<IDX>) {
+    chomp;
+    if (/^filename/) { next; }
+    ($file,$src,$frcvr,$type) = split;
+    unless ($src =~ /\Q$src_req\E/) { next; }
+    if (defined($date) and $file!~/\Q$date\E/) { next; }
+    if (defined($rcvr) and $frcvr!~/\Q$rcvr\E/i) { next; }
+    $bad=0;
+    foreach $bf (@badlist) { 
+        if ($file =~ /\Q$bf\E/) { $bad=1; last; }
+    }
+    if ($bad) { next; }
+    $file_only = $file;
+    $file_only =~ s/^.+\///;
+    if (-e $file_only) { next; }
+    print "$_\n";
+    if ($mode eq "copy") { system("cp -u $data_dir{$be}/$file ."); }
+    if ($mode eq "link") { system("ln -s $data_dir{$be}/$file ."); }
+}
+close IDX;
