@@ -36,8 +36,10 @@ psrnames = [
     "J1918-0642",
     "B1937+21",
     "J2010-1323",
+    "J2033+1734",
     "J2124-3358",
     "J2145-0750",
+    "J2234+0944",
     ]
 
 def proper_name(name):
@@ -73,5 +75,8 @@ if __name__=="__main__":
     try:
         fname = sys.argv[1]
         print get_proper_name(fname)
+    except IndexError:
+        for psr in sys.stdin.readlines():
+            print proper_name(psr.rstrip())
     except:
         sys.exit(1)
