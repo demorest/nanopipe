@@ -61,6 +61,9 @@ template_be = ""
 # Specify which cal method should be used for timing template
 template_cal_method = ""
 
+# Turn off rules to make templates
+build_templates = False
+
 # Format as understood by "pat -f" for TOAs.
 toa_format = "tempo2 IPTA"
 
@@ -293,8 +296,9 @@ for r in rcvrnames:
 
 # Generate template files and TOAs.
 # This will currently regenerate all TOAs anytime anything changes..
-print "%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@"
-print "%.sm: %\n\tpsrsmooth -W -t UD8 $<"
+if build_templates:
+    print "%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@"
+    print "%.sm: %\n\tpsrsmooth -W -t UD8 $<"
 pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '/FORMAT/ {print $$0} ! /FORMAT/ {print $$0,\"-proc " + ver_id + " -pta NANOGrav\"}' >> $@"
 ## old ver:
 #if template_be=="":
@@ -323,9 +327,10 @@ for r in rcvrnames:
         #targets[tmpl] = map(lambda x: x+'.'+c+'.ff', rcvrscans[r])
         # Instead, use a explicit rule for each template
         profiles = map(lambda x: x+'.'+c+'.ff', rcvrscans[r])
-        print tmpl + ":"
-        print "\tautotoa -g0.1 -i3 -S $@ " + string.join(profiles) \
-                + "\n\tpam -r0.5 -m $@"
+        if build_templates:
+            print tmpl + ":"
+            print "\tautotoa -g0.1 -i3 -S $@ " + string.join(profiles) \
+                    + "\n\tpam -r0.5 -m $@"
 
         toa = id_str + '.tim'
         targets['toas'].append(toa)
