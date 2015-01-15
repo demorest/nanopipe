@@ -5,6 +5,11 @@
 #  guppi_56249_J1713+0747_0004_0001.fits
 #  guppi_56249_J1713+0747_0006_cal_0001.fits
 
+import sys
+basedir = '..'
+if len(sys.argv) > 1:
+    basedir = sys.argv[1]
+
 #######################################################################
 # Configuration section
 #######################################################################
@@ -19,7 +24,7 @@ ver_id = "8y"
 cal_fail = 'cal_failures.list'
 
 # Files containing list of files and/or scans to ignore
-ignore_files = ['../files.ignore', cal_fail]
+ignore_files = [basedir+'/files.ignore', cal_fail]
 
 # Standard zap commands (paz arguments) to apply per receiver
 # 'default' is applied to any reciever not listed
@@ -48,7 +53,7 @@ fscrunch_arg = {'327':'', '430':'', 'Rcvr_800':'-f2', 'Rcvr1_2':'-f8',
 tscrunch_arg = "-j 'T x8'"
 
 # Name of the rfi-zapping script to call
-zap_script = "../zap_minmax"
+zap_script = basedir + "/zap_minmax"
 
 # Final tscrunch pam arg for TOAs (.ff files)
 final_tscrunch = "" # Overrides the pam argument
@@ -72,7 +77,7 @@ toa_args = "-A FDM -e mcmc=0 -C chan -C subint -C snr -C wt"
 
 # Allow any of these to be redefined in a local config file
 try:
-    execfile('../make_psr_make.config.py')
+    execfile(basedir + '/make_psr_make.config.py')
 except IOError:
     pass
 
@@ -179,6 +184,8 @@ except RuntimeError:
         pb_sec = 0.0
 if pb_sec > 0:
     max_tscrunch = min(pb_sec*max_pbfrac, max_tscrunch)
+    # XXX temp hack for 0636
+    #max_tscrunch = max(max_tscrunch, 128.0)
 
 # Append version id to each scan name
 calscans = map(lambda x: x+'.'+ver_id, calscans)
@@ -212,6 +219,8 @@ print """# NOTE:
 # Makefile targets - each has a list of prereqs
 targets = {}
 targets['calibration'] = []
+targets['zap'] = []
+targets['scrunch'] = []
 targets['templates'] = []
 targets['toas'] = []
 targets['all'] = ['calibration', 'templates', 'toas']
@@ -231,13 +240,13 @@ print "%."+ver_id+".cf: %." + raw_ext + ("\n\tpam -e %s.cf -T --name `get_proper
 print "\tpsredit -m -c rcvr:name=`fix_receiver_name $@` $@"
 print "\ttest -e $@ || echo $* >> " + cal_fail
 cfs = map(lambda x: x+'.cf', calscans)
-print ".PHONY: all cf calibration templates toas"
+print ".PHONY: all cf calibration zap scrunch templates toas"
 targets['cf'] = cfs
 targets['calibration'].append('cf')
-dbfile = "../database.txt"
+dbfile = basedir + "/database.txt"
 
 # Update the psrchive cal database
-print dbfile + ": " + string.join(cfs) + "\n\tpac -w -p .."
+print dbfile + ": " + string.join(cfs) + "\n\tpac -w -p " + basedir
 targets['calibration'].append(dbfile)
 
 # Make the combined .rf files
@@ -269,7 +278,7 @@ for r in rcvrnames:
         calib_files = map(lambda x: x+'.'+ext, rcvrscans[r])
         print "\n# Calibration for receiver '%s':" % (r)
         print string.join(calib_files)+": %."+ext+": %.rf | cf "+ dbfile
-        print "\ttest -e $< && (pac -a"+c+" -e "+ext+" -d "+dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail 
+        print "\ttest -e $< && (pac -Ta"+c+" -e "+ext+" -d "+dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail 
         print "\ttest -e $@ && (paz -m -E2.0 " + z + " $@; rm $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
         targets['calibration'].extend(calib_files)
 
@@ -278,11 +287,11 @@ for r in rcvrnames: all_calib_scans.extend(calib_scans[r])
 
 # Extra zapping
 print "\n%.zap: %.calib\n\tpsrsh -e zap " + zap_script + " $<"
-targets['calibration'].extend(map(lambda x: x+'.zap', all_calib_scans))
+targets['zap'].extend(map(lambda x: x+'.zap', all_calib_scans))
 
 # Normalize by off-pulse RMS
 print "\n%.norm: %.zap\n\tnormalize_rms $<"
-targets['calibration'].extend(map(lambda x: x+'.norm', all_calib_scans))
+targets['scrunch'].extend(map(lambda x: x+'.norm', all_calib_scans))
 
 # Make final partly scrunched version for TOAs, different scrunch
 # per rcvr
@@ -292,7 +301,7 @@ for r in rcvrnames:
     files = map(lambda x: x+'.ff', calib_scans[r])
     f = get(fscrunch_arg,r)
     print string.join(files)+": %.ff: %.norm\n\tpam -e ff "+f+" "+final_tscrunch+ " $<"
-    targets['calibration'].extend(files)
+    targets['scrunch'].extend(files)
 
 # Generate template files and TOAs.
 # This will currently regenerate all TOAs anytime anything changes..
