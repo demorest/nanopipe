@@ -48,6 +48,10 @@ cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
 fscrunch_arg = {'327':'', '430':'', 'Rcvr_800':'-f2', 'Rcvr1_2':'-f8', 
         'L-wide':'-f8', 'S-wide':'-f8', 'default':'--setnchn=64'}
 
+# For fixing REF_MJD precision problem, needs to be run before
+# rephasing to a new parfile
+fix_arg = "-j 'fix refmjd'"
+
 # Initial tscrunching (or other processing) to do when combining
 # raw files.
 tscrunch_arg = "-j 'T x8'"
@@ -251,9 +255,10 @@ targets['calibration'].append(dbfile)
 
 # Make the combined .rf files
 parfile = srcname + ".basic.par"
-if os.path.exists(parfile): epharg = " -j 'install par " + parfile + "'"
+if os.path.exists(parfile): epharg = "-j 'install par " + parfile + "'"
 else: epharg = ""
-print "%."+ver_id+".rf:\n\tpsradd" + epharg + " " + tscrunch_arg \
+print "%."+ver_id+".rf:\n\tpsradd " + fix_arg + " " + epharg \
+        + " " + tscrunch_arg \
         + " -j \"e rcvr:name=`fix_receiver_name $<`\"" \
         + " -j \"e name=`get_proper_name $<`\"" \
         + " -o $@ $^" 
