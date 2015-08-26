@@ -1,0 +1,2 @@
+zap median
+tscrunch x{$int[0]:duration < 5.0 ? 64 : 8}
