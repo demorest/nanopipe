@@ -43,6 +43,11 @@ zap = {
 # 'default' is applied for receivers not explicitly listed. 
 cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
 
+# Extension to add to calibrated data files.  Note, if 
+# cal_method is 'P', a 'P' will be appended after this
+# extenstion.
+calib_ext = 'calib'
+
 # Frequency scrunch commands (pam options) to apply in order
 # to reduce the data to the final resolution desired for TOAs.
 fscrunch_arg = {'327':'', '430':'', 'Rcvr_800':'-f2', 'Rcvr1_2':'-f8', 
@@ -210,8 +215,14 @@ print """# NOTE:
 # Working dir '%s'
 # Source name '%s'
 #
+# To generate partially scrunched, uncalibrated files:
+#    make -f Make.psr rf
 # To generate calibrated files:
 #    make -f Make.psr calibration
+# To generate RFI-zapped files:
+#    make -f Make.psr zap
+# To generate scrunched files:
+#    make -f Make.psr scrunch
 # To generate templates for timing:
 #    make -f Make.psr templates
 # To generate toas:
@@ -278,20 +289,28 @@ for r in rcvrnames:
     z = get(zap,r)
     calib_scans[r] = []
     for c in cm:
-        ext = c + ".calib"
+        if 'P' in c: do_fluxcal=False
+        else: do_fluxcal=True
+        ext = c + '.' + calib_ext
+        extpac = ext
+        if not do_fluxcal: extpac = ext + 'P'
         calib_scans[r].extend(map(lambda x: x+'.'+c, rcvrscans[r]))
-        calib_files = map(lambda x: x+'.'+ext, rcvrscans[r])
+        calib_files = map(lambda x: x+'.'+extpac, rcvrscans[r])
         print "\n# Calibration for receiver '%s':" % (r)
-        print string.join(calib_files)+": %."+ext+": %.rf | cf "+ dbfile
-        print "\ttest -e $< && (pac -Ta"+c+" -e "+ext+" -d "+dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail 
+        print string.join(calib_files)+": %."+extpac+": %.rf | cf "+ dbfile
+        print "\ttest -e $< && (pac -Ta" + c + " -e " + ext + " -d " + dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
         print "\ttest -e $@ && (paz -m -E2.0 " + z + " $@; rm $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
+        if do_fluxcal:
+            print "\ttest -e $@ || rm $@P" # clean up .calibP files
         targets['calibration'].extend(calib_files)
 
 all_calib_scans = []
 for r in rcvrnames: all_calib_scans.extend(calib_scans[r])
 
 # Extra zapping
-print "\n%.zap: %.calib\n\tpsrsh -e zap " + zap_script + " $<"
+zap_cmd = "psrsh -e zap " + zap_script + " $<"
+print "\n%.zap: %." + calib_ext + "\n\t " + zap_cmd
+print "\n%.zap: %." + calib_ext + 'P' + "\n\t " + zap_cmd
 targets['zap'].extend(map(lambda x: x+'.zap', all_calib_scans))
 
 # Normalize by off-pulse RMS
