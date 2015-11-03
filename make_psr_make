@@ -72,6 +72,9 @@ max_pbfrac = 0.02 # Maximum fraction of an orbit to tscrunch
 # Specify templates from a different backend
 template_be = ""
 
+# Specifiy version id tag for tempaltes
+template_id = ""
+
 # Specify which cal method should be used for timing template
 template_cal_method = ""
 
@@ -338,13 +341,14 @@ pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '/FORMAT/ 
 #    print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\t" + pat_cmd
 #else:
 if template_be=="": template_be=backend
+if template_id=="": template_id=ver_id
 if True:
     cms = list(set(reduce(lambda x,y: x+y, cal_methods.values())))
     for c in cms:
         if template_cal_method=="": c_tmp=c
         else: c_tmp = template_cal_method
         tim_id = "%s.%s.%s" % (backend, ver_id, c)
-        tmp_id = "%s.%s.%s" % (template_be, ver_id, c_tmp)
+        tmp_id = "%s.%s.%s" % (template_be, template_id, c_tmp)
         print ("%%.%s.tim: %%.%s.sum.sm\n\techo 'MODE 1' > $@\n\t" % (tim_id,tmp_id)) + pat_cmd
 for r in rcvrnames:
     cm = get(cal_methods,r)
