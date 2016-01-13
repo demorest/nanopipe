@@ -8,7 +8,11 @@ for fname in sys.argv[1:]:
     f = fitsio.FITS(fname,'rw')
     h = f[0].read_header()
     if not 'UPPI' in h['BACKEND']:
-        print "%s: backend='%s', skipping" % h['BACKEND']
+        print "%s: backend='%s', skipping" % (fname, h['BACKEND'])
+        f.close()
+        continue
+    if h['BE_DELAY'] != 0.0:
+        print "%s: be_delay=%e, skipping" % (fname, h['BE_DELAY'])
         f.close()
         continue
     orig_ch_bw = abs(h['OBSBW']) / h['OBSNCHAN']
@@ -20,7 +24,4 @@ for fname in sys.argv[1:]:
     print "%s: %d %.5e" % (fname, h['OBSNCHAN'], be_delay)
     f[0].write_key('BE_DELAY', be_delay, '[s] Updated')
     f.close()
-
-
-
 
