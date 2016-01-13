@@ -5,7 +5,7 @@ import string
 import psrchive
 
 # Read in the name lists
-datadir = '/data1/demorest/src/nanopipe' # TODO fix me up
+datadir = '/users/pdemores/src/nanopipe' # TODO fix me up
 psrbnames = map(string.rstrip,open(datadir+'/psrbnames.dat').readlines())
 psrjnames = map(string.rstrip,open(datadir+'/psrjnames.dat').readlines())
 
