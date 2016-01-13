@@ -10,6 +10,7 @@ $data_dir{"wapp"} = $data_base . "/arecibo/wapp";
 $data_dir{"gasp"} =  $data_base . "/gbt/gasp";
 $data_dir{"guppi"} =  $data_base . "/gbt/guppi";
 $data_dir{"guppi2"} =  $data_base . "/gbt/guppi2";
+$data_dir{"guppi2fix"} =  '/lustre/aoc/users/pdemores/timing/nanograv_guppi_remerged';
 $data_dir{"puppi"} =  $data_base . "/arecibo/puppi";
 
 unless ($#ARGV>=1) {
@@ -23,7 +24,7 @@ if ($ARGV[0] eq "-l") { $mode="link"; shift @ARGV; }
 ($be,$src_req,@extra) = @ARGV;
 if (defined(@extra)) {
     foreach $thing (@extra) {
-        if ($thing =~ /\d\d\d\d_\d\d/) { $date = $thing; }
+        if ($thing =~ /\d\d\d\d(_\d\d)?/) { $date = $thing; }
         else { $rcvr = $thing; }
     }
 }
