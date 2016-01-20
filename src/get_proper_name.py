@@ -1,11 +1,11 @@
 #! /usr/bin/env python
-import string
+import os, string
 
 # load psrchive, set it to not load full data from the files
 import psrchive
 
 # Read in the name lists
-datadir = '/users/pdemores/src/nanopipe' # TODO fix me up
+datadir = os.path.dirname(__file__) + '/data'
 psrbnames = map(string.rstrip,open(datadir+'/psrbnames.dat').readlines())
 psrjnames = map(string.rstrip,open(datadir+'/psrjnames.dat').readlines())
 
