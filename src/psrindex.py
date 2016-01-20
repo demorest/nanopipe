@@ -70,6 +70,10 @@ class PSRFile(namedtuple('PSRFile', _infofields)):
         # via this interface..
         return cls._make(row)
 
+    @property
+    def full_path(self):
+        return self.path + '/' + self.fname
+
 class PSRIndex(object):
     """This class represents an index of pulsar data files."""
 
@@ -139,7 +143,7 @@ class PSRIndex(object):
             self.add_file(fname, commit=False)
         self.db.commit()
 
-    def select(self, where=None, include_bad=False):
+    def select(self, where=None, include_bad=False, as_dict=False):
         """Shortcut to select / fetchall"""
         qry = "select * from files"
         if (where is None) and include_bad:
@@ -155,6 +159,12 @@ class PSRIndex(object):
         qry += " order by mjd"
         if self.verbose: print qry
         self.cur.execute(qry)
-        return self.cur.fetchall()
+        if as_dict:
+            output = {}
+            for f in self.cur.fetchall():
+                output[f.fname] = f
+            return output
+        else:
+            return self.cur.fetchall()
         
 
