@@ -99,7 +99,7 @@ except IOError:
 
 import os, sys, glob, string
 import psrchive
-import get_proper_name
+from nanopipe import get_proper_name
 
 # List of original input files, they are assumed to all have the 
 # given extension.

@@ -10,5 +10,6 @@ setup(name='nanopipe',
       url='http://github.com/demorest/nanopipe',
       packages=['nanopipe'],
       package_dir={'nanopipe': 'src'},
-      package_data={'nanopipe': ['data/psrjnames.dat','data/psrbnames.dat']}
+      package_data={'nanopipe': ['data/psrjnames.dat','data/psrbnames.dat']},
+      scripts=['scripts/make_psr_make']
      )
