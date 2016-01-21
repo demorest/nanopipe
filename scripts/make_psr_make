@@ -54,8 +54,8 @@ fscrunch_arg = {'327':'', '430':'', 'Rcvr_800':'-f2', 'Rcvr1_2':'-f8',
         'L-wide':'-f8', 'S-wide':'-f8', 'default':'--setnchn=64'}
 
 # For fixing REF_MJD precision problem, needs to be run before
-# rephasing to a new parfile
-fix_arg = "-j 'fix refmjd'"
+# rephasing to a new parfile.  Also updates backend delays.
+fix_arg = "-j 'fix refmjd' -J " + basedir + "/update_be_delay.psrsh"
 
 # Initial tscrunching (or other processing) to do when combining
 # raw files.
