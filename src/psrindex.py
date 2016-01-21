@@ -143,6 +143,13 @@ class PSRIndex(object):
             self.add_file(fname, commit=False)
         self.db.commit()
 
+    def flag_bad(self, fname, reason="", unflag=False):
+        if unflag: badval=0
+        else: badval=1
+        qry = "update files set bad=?, reason=? where fname=?"
+        self.cur.execute(qry, (badval, reason, fname))
+        self.db.commit()
+
     def select(self, where=None, include_bad=False, as_dict=False):
         """Shortcut to select / fetchall"""
         qry = "select * from files"
