@@ -11,5 +11,6 @@ setup(name='nanopipe',
       packages=['nanopipe'],
       package_dir={'nanopipe': 'src'},
       package_data={'nanopipe': ['data/psrjnames.dat','data/psrbnames.dat']},
-      scripts=['scripts/make_psr_make', 'scripts/update_be_delay']
+      scripts=['scripts/make_psr_make', 'scripts/update_be_delay',
+          'scripts/get_proper_name']
      )

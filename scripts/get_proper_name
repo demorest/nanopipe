@@ -1,0 +1,13 @@
+#! /usr/bin/env python
+from nanopipe import get_proper_name as gpn
+
+if __name__=="__main__":
+    import sys
+    try:
+        fname = sys.argv[1]
+        print gpn.get_proper_name(fname)
+    except IndexError:
+        for psr in sys.stdin.readlines():
+            print gpn.proper_name(psr.rstrip())
+    except:
+        sys.exit(1)
