@@ -5,6 +5,7 @@ zap freq 446:480
 zap freq 980:1150
 zap freq 1615:1630
 zap freq 1880:2050
+zap freq 2100:2160
 zap freq 2400:2600
 zap median exp={$off:max-$off:min}
 zap median
