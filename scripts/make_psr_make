@@ -18,7 +18,7 @@ if len(sys.argv) > 1:
 raw_ext = "fits"
 
 # Processing version suffix
-ver_id = "8y"
+ver_id = "NG"
 
 # Log any calibration failures in this file
 cal_fail = 'cal_failures.list'
@@ -67,7 +67,7 @@ zap_script = basedir + "/zap_minmax"
 # Final tscrunch pam arg for TOAs (.ff files)
 final_tscrunch = "" # Overrides the pam argument
 max_tscrunch = 1800.0 # Maximum tscrunch in seconds
-max_pbfrac = 0.02 # Maximum fraction of an orbit to tscrunch
+max_pbfrac = 0.025 # Maximum fraction of an orbit to tscrunch
 
 # Specify templates from a different backend
 template_be = ""
