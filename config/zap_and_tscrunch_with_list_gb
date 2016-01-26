@@ -1,0 +1,6 @@
+zap freq 1615:1630
+zap freq 794.6:798.6
+zap freq 814.1:820.7
+zap median exp={$off:max-$off:min}
+zap median
+tscrunch x{$int[0]:duration < 5.0 ? 32 : 8}
