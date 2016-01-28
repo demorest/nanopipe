@@ -1,0 +1,35 @@
+#! /usr/bin/env python
+
+# Command line interface to psrindex
+
+import os, sys, string
+from nanopipe import psrindex
+
+from optparse import OptionParser
+cmdline = OptionParser()
+cmdline.add_option('-d', '--dbfile', 
+    action='store', dest='dbfile', default='index.db',
+    help='Database file')
+cmdline.add_option('-b', '--backend', 
+    action='store', dest='backend', default=None,
+    help='Backend name')
+cmdline.add_option('-s', '--source', 
+    action='store', dest='source', default=None,
+    help='Source name (partial string is allowed)')
+cmdline.add_option('-l', '--link', 
+    action='store_true', dest='link', default=False,
+    help='Create symlinks to raw files in current directory')
+(opt,args) = cmdline.parse_args()
+
+if (opt.backend is None) or (opt.source is None):
+    print "Specify backend and source"
+    sys.exit(1)
+
+db = psrindex.PSRIndex(opt.dbfile)
+
+files = db.select('backend="%s" and source like "%%%s%%"' % (opt.backend, opt.source))
+
+for f in files:
+    print f.full_path
+    if opt.link:
+        os.symlink(f.full_path, './'+f.fname)
