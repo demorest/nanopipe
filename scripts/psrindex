@@ -22,9 +22,12 @@ cmdline.add_option('-s', '--select',
 cmdline.add_option('-l', '--link', 
         action='store_true', dest='link', default=False,
         help='Create symlinks to files matching selection in current directory')
-cmdline.add_option('-a', dest='add_dir', default=[],
+cmdline.add_option('-a', '--add', dest='add_dir', default=[],
         action='append', type='string',
         help='Search the specified directory tree and add to DB')
+cmdline.add_option('-f', '--diff', dest='diff_db', default=None,
+        action='store', type='string',
+        help='Print files in DIFF_DB not found in the main DB.')
 
 # Selection parameters
 cmdline.add_option('-B', '--backend', 
@@ -43,6 +46,16 @@ if len(opt.add_dir)>0:
 
     for dir in opt.add_dir:
         db.add_files(dir)
+
+if opt.diff_db is not None:
+
+    db_main = psrindex.PSRIndex(opt.dbfile)
+    db_diff = psrindex.PSRIndex(opt.diff_db)
+
+    files_main = set([f.fname for f in db_main.select(include_bad=True)])
+    files_diff = set([f.fname for f in db_diff.select(include_bad=True)])
+
+    for fname in sorted(files_diff.difference(files_main)): print fname
 
 if opt.select or opt.link:
 
