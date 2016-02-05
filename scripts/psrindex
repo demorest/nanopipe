@@ -7,29 +7,56 @@ from nanopipe import psrindex
 
 from optparse import OptionParser
 cmdline = OptionParser()
+cmdline.add_option('-v', '--verbose',
+        action='store_true', dest='verbose', default=False,
+        help='More verbose output')
+
 cmdline.add_option('-d', '--dbfile', 
-    action='store', dest='dbfile', default='index.db',
-    help='Database file')
-cmdline.add_option('-b', '--backend', 
-    action='store', dest='backend', default=None,
-    help='Backend name')
-cmdline.add_option('-s', '--source', 
-    action='store', dest='source', default=None,
-    help='Source name (partial string is allowed)')
+        action='store', dest='dbfile', default='index.db',
+        help='Database file')
+
+# Operation mode parameters
+cmdline.add_option('-s', '--select',
+        action='store_true', dest='select', default=False,
+        help='Print filenames matching selection')
 cmdline.add_option('-l', '--link', 
-    action='store_true', dest='link', default=False,
-    help='Create symlinks to raw files in current directory')
+        action='store_true', dest='link', default=False,
+        help='Create symlinks to files matching selection in current directory')
+cmdline.add_option('-a', dest='add_dir', default=[],
+        action='append', type='string',
+        help='Search the specified directory tree and add to DB')
+
+# Selection parameters
+cmdline.add_option('-B', '--backend', 
+        action='store', dest='backend', default=None,
+        help='Backend name')
+cmdline.add_option('-S', '--source', 
+        action='store', dest='source', default=None,
+        help='Source name (partial string is allowed)')
+
 (opt,args) = cmdline.parse_args()
 
-if (opt.backend is None) or (opt.source is None):
-    print "Specify backend and source"
-    sys.exit(1)
+if len(opt.add_dir)>0:
 
-db = psrindex.PSRIndex(opt.dbfile)
+    db = psrindex.PSRIndex(opt.dbfile, create=True)
+    db.verbose = opt.verbose
 
-files = db.select('backend="%s" and source like "%%%s%%"' % (opt.backend, opt.source))
+    for dir in opt.add_dir:
+        db.add_files(dir)
 
-for f in files:
-    print f.full_path
-    if opt.link:
-        os.symlink(f.full_path, './'+f.fname)
+if opt.select or opt.link:
+
+    db = psrindex.PSRIndex(opt.dbfile)
+    db.verbose = opt.verbose
+
+    if (opt.backend is None) or (opt.source is None):
+        print "Specify backend and source"
+        sys.exit(1)
+
+    files = db.select('backend="%s" and source like "%%%s%%"' % (opt.backend, opt.source))
+
+    for f in files:
+        if opt.select:
+            print f.full_path
+        if opt.link:
+            os.symlink(f.full_path, './'+f.fname)
