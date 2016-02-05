@@ -79,8 +79,9 @@ class PSRIndex(object):
 
     def __init__(self, filename="index.db", create=False):
 
-        # TODO: if file exists, open with sqlite
-        # if not, create file if create=True, else error
+        if not create:
+            if not os.path.exists(filename):
+                raise RuntimeError("PSRIndex file '%s' not found" % filename)
 
         self.dbfilename = filename
         self.db = sqlite3.connect(self.dbfilename)
