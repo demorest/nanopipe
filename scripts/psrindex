@@ -27,7 +27,7 @@ cmdline.add_option('-a', '--add', dest='add_dir', default=[],
         help='Search the specified directory tree and add to DB')
 cmdline.add_option('-f', '--diff', dest='diff_db', default=None,
         action='store', type='string',
-        help='Print files in DIFF_DB not found in the main DB.')
+        help='Print files in main DB not found in DIFF_DB')
 
 # Selection parameters
 cmdline.add_option('-B', '--backend', 
@@ -52,10 +52,14 @@ if opt.diff_db is not None:
     db_main = psrindex.PSRIndex(opt.dbfile)
     db_diff = psrindex.PSRIndex(opt.diff_db)
 
-    files_main = set([f.fname for f in db_main.select(include_bad=True)])
-    files_diff = set([f.fname for f in db_diff.select(include_bad=True)])
+    files_main = db_main.select(include_bad=True,as_dict=True)
+    files_diff = db_diff.select(include_bad=True,as_dict=True)
 
-    for fname in sorted(files_diff.difference(files_main)): print fname
+    fnames_main = set(files_main.keys())
+    fnames_diff = set(files_diff.keys())
+
+    for fname in sorted(fnames_main.difference(fnames_diff)): 
+        print files_main[fname].full_path
 
 if opt.select or opt.link:
 
