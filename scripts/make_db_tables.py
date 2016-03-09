@@ -60,7 +60,7 @@ class dbProfile(object):
 exts = ['rf','cf','ff','norm','zap','calib']
 
 # extension of raw files
-rawext = 'asp'
+rawext = 'fits'
 
 # Version tag
 ver = '9y'
@@ -88,32 +88,33 @@ for ext in exts:
 
             if ext == 'rf':
                 d.processingType = 'tscrunch'
-                d.processingFileName = 'initial_tscrunch.9y.txt'
+                d.processingFileName = 'initial_tscrunch.%s.txt' % (ver,)
 
             elif ext == 'cf':
                 d.processingType = 'tscrunch'
-                d.processingFileName = 'cal_tscrunch.9y.txt'
+                d.processingFileName = 'cal_tscrunch.%s.txt' % (ver,)
 
             elif ext == 'calib':
                 d.processingType = 'polcal'
                 caltype = fullext[0]
-                d.processingFileName = 'polcal_%s.9y.txt' % (caltype,)
+                d.processingFileName = 'polcal_%s.%s.txt' % (caltype,ver)
                 d.add_source(scan + '.rf')
 
             elif ext == 'zap':
                 d.processingType = 'zap'
-                d.processingFileName = 'rfizap.9y.txt'
+                d.processingFileName = 'rfizap.%s.txt' % (ver,)
                 d.add_source(base + '.calib')
 
             elif ext == 'norm':
                 d.processingType = 'normalize'
-                d.processingFileName = 'normalize.9y.txt'
+                d.processingFileName = 'normalize.%s.txt' % (ver,)
                 d.add_source(base + '.zap')
 
             elif ext == 'ff':
                 d.processingType = 'fscrunch,tscrunch'
                 d.processingFileName = \
-                        'final_fscrunch.9y.txt,final_tscrunch.9y.txt'
+                        'final_fscrunch.%s.txt,final_tscrunch.%s.txt' % (ver,
+                                ver)
                 d.add_source(base + '.zap')
 
             print d.loading_info() 
