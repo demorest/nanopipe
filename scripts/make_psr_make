@@ -43,6 +43,9 @@ zap = {
 # 'default' is applied for receivers not explicitly listed. 
 cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
 
+# Any additional options to pass to pac
+pac_args = '-Ta'
+
 # Extension to add to calibrated data files.  Note, if 
 # cal_method is 'P', a 'P' will be appended after this
 # extenstion.
@@ -149,6 +152,8 @@ def scan_match(base,full):
             return False
         else:
             return base.replace('.'+ver_id,'') in full
+    if 'Cal' in full and not 'Cal' in base:
+        return False
     else:
         return base.replace('.'+ver_id,'') in full
 
@@ -301,7 +306,7 @@ for r in rcvrnames:
         calib_files = map(lambda x: x+'.'+extpac, rcvrscans[r])
         print "\n# Calibration for receiver '%s':" % (r)
         print string.join(calib_files)+": %."+extpac+": %.rf | cf "+ dbfile
-        print "\ttest -e $< && (pac -Ta" + c + " -e " + ext + " -d " + dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
+        print "\ttest -e $< && (pac " + pac_args + " -" + c + " -e " + ext + " -d " + dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
         print "\ttest -e $@ && (paz -m -E2.0 " + z + " $@; rm $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
         if do_fluxcal:
             print "\ttest -e $@ || rm $@P" # clean up .calibP files
