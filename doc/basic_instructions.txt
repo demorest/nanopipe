@@ -1,0 +1,43 @@
+How to use nanopipe
+PBD 2016/09/23
+
+---
+
+1. Make a base directory you will work in.
+
+2. Under this make a subdir for each pulsar; put copies (or links) to all this
+pulsar's raw data and cal files in this dir.
+
+3. Make a fluxcal/ subdir under your base dir; put all the fluxcal data here.
+You need to process all the data into .fcal files by running the 'fluxcal'
+program.  The processing script currently does not do this for you.  You should
+be able to just run 'fluxcal -f -e fcal' on all the flux cal data files.  You
+should get a bunch of .fcal files out.  You can plot these using 'pacv' ..
+delete any that seem to be messed up.
+
+4. Copy the files 'zap_and_tscrunch' and 'zap_minmax' from the nanopipe
+repository into your base dir.  I just uploaded this, you will need to refresh
+your copy of the code to get it.
+
+5. Create a file 'make_psr_make.config.py' in your base dir.  Put the following
+two lines into it:
+
+  ver_id = "project_id" 
+  tscrunch_arg = "-J ../zap_and_tscrunch"
+
+The ver_id is a tag that will be added to all the processed file names (eg, the
+final nine-year files have '9y').  You can change the value to whatever you
+want to use for this.  The idea is that if/when someone reprocesses all the
+data, they should use a different tag to avoid filename conflicts with previous
+rounds of processing.
+
+6. cd to the pulsar subdir you want to process and run 'make_psr_make (basedir)
+> Make.psr'.  Replace (basedir) with the full path to the base directory.  If
+you leave this out it will default to '..' which usually works OK, but there
+can be problems with links so it's safer to specify the full path.
+
+7. run 'make -f Make.psr toas' to do all the processing.  You can also add -'j
+8' for example to have it run 8 processes in parallel, etc.  If you just want
+it to stop after doing the calibration you can do 'make -f Make.psr
+calibration' (and also look at the info inside Make.psr for other options).
+
