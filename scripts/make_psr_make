@@ -152,11 +152,16 @@ def scan_match(base,full):
     else:
         return base.replace('.'+ver_id,'') in full
 
-# Standardize Arecibo receiver names
-def fix_rcvr_name(orig_name):
-    if orig_name == 'lbw': return 'L-wide'
-    elif orig_name == 'sbw': return 'S-wide'
-    else: return orig_name
+# Fix broken/inconsistent puppi labelling
+def fix_rcvr_name(archive):
+    if archive.get_backend_name()=='PUPPI':
+        nc = archive.get_nchan()
+        freq = archive[0].get_centre_frequency(nc/2)
+        if (freq<400.0): return '327'
+        if (freq<500.0): return '430'
+        if (freq<1900.0): return 'L-wide'
+        if (freq<3000.0): return 'S-wide'
+    return archive.get_receiver_name()
 
 # List of unique base filenames (eg, scans)
 scans = list(set(map(basename,inputs)))
@@ -175,7 +180,7 @@ for sc in scans:
         calscans.append(sc)
     elif arch.get_type() == "Pulsar":
         psrscans.append(sc)
-        rcvrs[sc] = fix_rcvr_name(arch.get_receiver_name())
+        rcvrs[sc] = fix_rcvr_name(arch)
 
 # Assume for now that all files are of a single source
 # Get it from the first file in the list
@@ -247,7 +252,7 @@ print ".DEFAULT_GOAL := calibration"
 # Update the makefile
 mfile = 'Make.psr'
 makemake = __file__
-print mfile + ": *." + raw_ext + " " + makemake + " " + cal_fail
+print mfile + ": *." + raw_ext + " " + cal_fail
 print "\t" + makemake + " > $@"
 
 print cal_fail + ": "
@@ -271,7 +276,7 @@ targets['calibration'].append(dbfile)
 parfile = srcname + ".basic.par"
 if os.path.exists(parfile): epharg = "-j 'install par " + parfile + "'"
 else: epharg = ""
-print "%."+ver_id+".rf:\n\tpsradd " + fix_arg + " " + epharg \
+print "%."+ver_id+".rf:\n\tpsradd -n " + fix_arg + " " + epharg \
         + " " + tscrunch_arg \
         + " -j \"e rcvr:name=`fix_receiver_name $<`\"" \
         + " -j \"e name=`get_proper_name $<`\"" \
@@ -301,7 +306,7 @@ for r in rcvrnames:
         calib_files = map(lambda x: x+'.'+extpac, rcvrscans[r])
         print "\n# Calibration for receiver '%s':" % (r)
         print string.join(calib_files)+": %."+extpac+": %.rf | cf "+ dbfile
-        print "\ttest -e $< && (pac -Ta" + c + " -e " + ext + " -d " + dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
+        print "\ttest -e $< && (pac -a" + c + " -e " + ext + " -d " + dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
         print "\ttest -e $@ && (paz -m -E2.0 " + z + " $@; rm $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
         if do_fluxcal:
             print "\ttest -e $@ || rm $@P" # clean up .calibP files
