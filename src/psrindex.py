@@ -115,7 +115,9 @@ class PSRIndex(object):
                 "puppi_*.fits",
                 "5????.*.asp",
                 "c??????.dat",
-                "ABPP_*.ar"
+                "ABPP_*.ar",
+                "*.1.[AB][CD]_????.ar",
+                "*.1.[AB][CD]_????.cf",
                 ]
 
     def list_files(self, basedir='.'):
