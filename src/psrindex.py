@@ -14,7 +14,20 @@ import sqlite3
 # if this will be imported by other code that needs to load the
 # data.  Could use "with" style context.
 import psrchive
-psrchive.Profile.no_amps.fset(True)
+#psrchive.Profile.no_amps.fset(True)
+class psrchive_no_amps(object):
+    """Use this in with statements to temporarily change the
+    PSRCHIVE no_amps setting.  Probably not thread-safe!"""
+    def __init__(self,mode=True):
+        self.mode = mode
+
+    def __enter__(self):
+        self.previous_setting = psrchive.Profile.no_amps.fget()
+        psrchive.Profile.no_amps.fset(self.mode)
+
+    def __exit__(self,t,v,tb):
+        psrchive.Profile.no_amps.fset(self.previous_setting)
+
 
 # dict of info to store and their sql type defs
 _infotypes = {
@@ -42,14 +55,15 @@ class PSRFile(namedtuple('PSRFile', _infofields)):
         fname should be full path to file name."""
         (path,fname) = os.path.split(fname_path)
         try:
-            arch = psrchive.Archive_load(fname_path)
-            source = arch.get_source()
-            rcvr = arch.get_receiver_name()
-            backend = arch.get_backend_name()
-            type = arch.get_type()
-            mjd = arch[0].get_epoch().in_days()
-            bad = 0
-            reason = ""
+            with psrchive_no_amps():
+                arch = psrchive.Archive_load(fname_path)
+                source = arch.get_source()
+                rcvr = arch.get_receiver_name()
+                backend = arch.get_backend_name()
+                type = arch.get_type()
+                mjd = arch[0].get_epoch().in_days()
+                bad = 0
+                reason = ""
         except:
             source = "unk"
             rcvr = "unk"
@@ -99,7 +113,11 @@ class PSRIndex(object):
         self.file_filters = [
                 "guppi_*.fits",
                 "puppi_*.fits",
-                "5????.*.asp"
+                "5????.*.asp",
+                "c??????.dat",
+                "ABPP_*.ar",
+                "*.1.[AB][CD]_????.ar",
+                "*.1.[AB][CD]_????.cf",
                 ]
 
     def list_files(self, basedir='.'):

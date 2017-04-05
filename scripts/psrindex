@@ -28,6 +28,9 @@ cmdline.add_option('-a', '--add', dest='add_dir', default=[],
 cmdline.add_option('-f', '--diff', dest='diff_db', default=None,
         action='store', type='string',
         help='Print files in main DB not found in DIFF_DB')
+cmdline.add_option('-b', '--bad', dest='badlist', default=[],
+        action='append', type='string',
+        help='Read the specified "bad.dat" file and flag DB entries')
 
 # Selection parameters
 cmdline.add_option('-B', '--backend', 
@@ -46,6 +49,29 @@ if len(opt.add_dir)>0:
 
     for dir in opt.add_dir:
         db.add_files(dir)
+
+if len(opt.badlist)>=0:
+
+    db = psrindex.PSRIndex(opt.dbfile)
+    db.verbose = opt.verbose
+
+    for badlist in opt.badlist:
+        if opt.verbose:
+            print "Flagging bad files from '%s'" % (badlist,)
+        last_reason = ''
+        for l in open(badlist).readlines():
+            if l.startswith('#'):
+                continue
+            stuff = l.rstrip().split(' ',1)
+            fname = stuff[0]
+            try:
+                reason = stuff[1]
+            except IndexError:
+                reason = ''
+            if reason.strip() == '"': reason=last_reason
+            print "Bad: %s '%s'" % (fname, reason)
+            db.flag_bad(fname,reason)
+            last_reason = reason
 
 if opt.diff_db is not None:
 
