@@ -102,4 +102,5 @@ if opt.select or opt.link:
         if opt.select:
             print f.full_path
         if opt.link:
-            os.symlink(f.full_path, './'+f.fname)
+            if not os.path.lexists(f.fname):
+                os.symlink(f.full_path, './'+f.fname)
