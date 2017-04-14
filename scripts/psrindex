@@ -99,8 +99,14 @@ if opt.select or opt.link:
     files = db.select('backend="%s" and source like "%%%s%%"' % (opt.backend, opt.source))
 
     for f in files:
+        base,ext = os.path.splitext(f.fname)
+        if ext == ".cf": # Cal file, so adding cal to filename
+          parts = base.split("_")
+          fitsname = string.join(parts[0:len(parts)-1],'_') + "_cal_" + parts[len(parts)-1]+ ".fits"
+        else:
+          fitsname = base + ".fits"
         if opt.select:
             print f.full_path
         if opt.link:
-            if not os.path.lexists(f.fname):
-                os.symlink(f.full_path, './'+f.fname)
+            if not os.path.lexists(fitsname):
+                os.symlink(f.full_path, './'+fitsname)
