@@ -279,9 +279,21 @@ targets['calibration'].append(dbfile)
 
 # Make the combined .rf files
 parfile = srcname + ".basic.par"
-if os.path.exists(parfile): epharg = "-j 'install par " + parfile + "'"
-else: epharg = ""
+if os.path.exists(parfile): 
+    # If the .basic.par file exists, use it to realign all profiles
+    # and apply the DM found in there.
+    epharg = "-j 'install par " + parfile + "'"
+    try:
+        eph = psrchive.TextParameters()
+        psrchive.Parameters.load(eph,parfile)
+        dmarg = "-j \"e dm=%.6f\"" % float(eph.get_value('DM'))
+    except:
+        dmarg = ""
+else: 
+    epharg = ""
+    dmarg = ""
 print "%."+ver_id+".rf:\n\tpsradd -n " + fix_arg + " " + epharg \
+        + " " + dmarg \
         + " " + tscrunch_arg \
         + " -j \"e rcvr:name=`fix_receiver_name $<`\"" \
         + " -j \"e name=`get_proper_name $<`\"" \
