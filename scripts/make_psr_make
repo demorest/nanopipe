@@ -41,7 +41,8 @@ zap = {
 # Calibration method (pac options) to apply for each receiver
 # Multiple options per reciever can be specified.
 # 'default' is applied for receivers not explicitly listed. 
-cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
+#cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
+cal_methods = {'default':['x']}
 
 # Any additional options to pass to pac
 pac_args = '-Ta'
@@ -339,7 +340,7 @@ print "\n%.zap: %." + calib_ext + 'P' + "\n\t " + zap_cmd
 targets['zap'].extend(map(lambda x: x+'.zap', all_calib_scans))
 
 # Normalize by off-pulse RMS
-print "\n%.norm: %.zap\n\tnormalize_rms $<"
+print "\n%.norm: %.zap\n\tnormalize_rms -w $<"
 targets['scrunch'].extend(map(lambda x: x+'.norm', all_calib_scans))
 
 # Make final partly scrunched version for TOAs, different scrunch
