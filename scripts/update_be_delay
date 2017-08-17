@@ -3,25 +3,104 @@
 # Update BE_DELAY keyword for guppi/puppi files
 
 import sys, fitsio
+from optparse import OptionParser
 
-for fname in sys.argv[1:]:
+# From guppi2_utils.py
+def fft_size_params(rf,bw,nchan,dm,max_databuf_mb=128):
+    """
+    fft_size_params(rf,bw,nchan,dm,max_databuf_mb=128):
+        Returns a tuple of size parameters (fftlen, overlap, blocsize)
+        given the input rf (center of band), bw, nchan, 
+        DM, and optional max databuf size in MB.
+    """
+    # Overlap needs to be rounded to a integer number of packets
+    # This assumes 8-bit 2-pol data (4 bytes per samp) and 8
+    # processing nodes.  Also GPU folding requires fftlen-overlap 
+    # to be a multiple of 64.
+    # TODO: figure out best overlap for coherent search mode.  For
+    # now, make it a multiple of 512
+    pkt_size = 8192
+    bytes_per_samp = 4
+    node_nchan = nchan / 8
+    round_fac = pkt_size / bytes_per_samp / node_nchan
+    #if (round_fac<64):  round_fac=64
+    if (round_fac<512):  round_fac=512
+    rf_ghz = (rf - abs(bw)/2.0)/1.0e3
+    chan_bw = bw / nchan
+    overlap_samp = 8.3 * dm * chan_bw**2 / rf_ghz**3
+    overlap_r = round_fac * (int(overlap_samp)/round_fac + 1)
+    # Rough FFT length optimization based on GPU testing
+    fftlen = 16*1024
+    if overlap_r<=1024: fftlen=32*1024
+    elif overlap_r<=2048: fftlen=64*1024
+    elif overlap_r<=16*1024: fftlen=128*1024
+    elif overlap_r<=64*1024: fftlen=256*1024
+    while fftlen<2*overlap_r: fftlen *= 2
+    # Calculate blocsize to hold an integer number of FFTs
+    # Uses same assumptions as above
+    max_npts_per_chan = max_databuf_mb*1024*1024/bytes_per_samp/node_nchan
+    nfft = (max_npts_per_chan - overlap_r)/(fftlen - overlap_r)
+    npts_per_chan = nfft*(fftlen-overlap_r) + overlap_r
+    blocsize = int(npts_per_chan*node_nchan*bytes_per_samp)
+    return (fftlen, overlap_r, blocsize)
+
+par = OptionParser()
+par.add_option("-m", "--mode", action="store",
+        dest="mode", default="cfold",
+        help="Obs mode (csearch, cfold, or incoh)")
+par.add_option("-f", "--force", action="store_true",
+        dest="force", default=False,
+        help="Force the over-writing of BE_DELAY")
+par.add_option("-v", "--value", type="float",
+        dest="value", default=2e9,
+        help="Set BE_DELAY to this explicit value")
+(opt,args) = par.parse_args()
+
+for fname in args:
     f = fitsio.FITS(fname,'rw')
     h = f[0].read_header()
     if not 'UPPI' in h['BACKEND']:
         print "%s: backend='%s', skipping" % (fname, h['BACKEND'])
         f.close()
         continue
-    if h['BE_DELAY'] != 0.0:
+    if (h['BE_DELAY'] != 0.0) and (not opt.force):
         print "%s: be_delay=%e, skipping" % (fname, h['BE_DELAY'])
         f.close()
         continue
-    orig_ch_bw = abs(h['OBSBW']) / h['OBSNCHAN']
-    if 'GUPPI' in h['BACKEND'] and h['OBSNCHAN']==128 and \
-            (h['STT_IMJD']<55692 and h['STT_IMJD']>55587):
-                be_delay = 8.0e-6 / orig_ch_bw / 2.0
+    bw = float(abs(h['OBSBW']))
+    nchan = h['OBSNCHAN']
+    orig_ch_bw = bw / nchan
+
+    pfb_fac = 2.0
+    if (opt.mode=="csearch" or opt.mode=="cfold"):
+        if (nchan==2048):
+            pfb_fac = 2.0
+        elif ((nchan==128) and (h['STT_IMJD']<55692 and 
+                                h['STT_IMJD']>55587)):
+            pfb_fac = 4.0
+        else:
+            pfb_fac = 6.0
+    be_delay = pfb_fac / orig_ch_bw # pfb corr in us. All modes get this
+
+    # For coherent search modes, you need to add 1/2 chirp overlap
+    if opt.mode=='csearch':
+        try:
+            dm = float(h['CHAN_DM'])
+            rf = float(h['OBSFREQ'])
+            # Overlap is returned in number of single-channel samples
+            fftlen, overlap, blocsize = fft_size_params(rf, bw, nchan, dm)
+            # Covert it to us
+            overlap_us = float(overlap) / orig_ch_bw
+            # Add it to pfb delay
+            be_delay += 0.5 * overlap_us
+        except ValueError: # Can't convert dm to float, likely.
+            pass
+
+    if opt.value < 2e9: # explicitly set the value on command line
+        be_delay = opt.value
     else:
-        be_delay = 12.0e-6 / orig_ch_bw / 2.0
-    print "%s: %d %.5e" % (fname, h['OBSNCHAN'], be_delay)
+        be_delay *= 1e-6
+    print "%s: %d %.5e" % (fname, nchan, be_delay)
     f[0].write_key('BE_DELAY', be_delay, '[s] Updated')
     f.close()
 
