@@ -45,16 +45,15 @@ def fft_size_params(rf,bw,nchan,dm,max_databuf_mb=128):
     return (fftlen, overlap_r, blocsize)
 
 par = OptionParser()
-par.add_option("-m", "--mode", action="store",
-        dest="mode", default="cfold",
-        help="Obs mode (csearch, cfold, or incoh)")
+par.add_option("-m", "--mode", action="store", dest="mode",
+        help="Obs mode (csearch, cfold, or incoh). Will attempt to auto-detect.")
 par.add_option("-f", "--force", action="store_true",
         dest="force", default=False,
         help="Force the over-writing of BE_DELAY")
-par.add_option("-v", "--value", type="float",
-        dest="value", default=2e9,
+par.add_option("-v", "--value", type="float", dest="value",
         help="Set BE_DELAY to this explicit value")
 (opt,args) = par.parse_args()
+mode = opt.mode
 
 for fname in args:
     f = fitsio.FITS(fname,'rw')
@@ -70,9 +69,40 @@ for fname in args:
     bw = float(abs(h['OBSBW']))
     nchan = h['OBSNCHAN']
     orig_ch_bw = bw / nchan
+    rf = float(h['OBSFREQ'])
+
+    # Now figure out the mode if we need to
+    if opt.mode is None:
+        # First, find the SUBINT HDU and get the sampling time.  This
+        # lets us tell the difference between csearch and cfold
+        obs_mode = h['OBS_MODE'].strip()
+        for hdu in f:
+            hdr = hdu.read_header()
+            if 'EXTNAME' in hdr:
+                if hdr['EXTNAME'].strip()=='SUBINT':
+                    dt = hdr['TBIN']
+                    pol = hdr['POL_TYPE'].strip()
+                    continue
+        dm = None
+        try:
+            dm = float(h['CHAN_DM'])
+        except ValueError: # Can't convert dm to float, therefore doesn't exist
+            pass
+        if dm is None: # No CHAN_DM, therefore incoherent
+            mode = "incoh"
+        else: # CHAN_DM is set (i.e. coherent, or subbanded incoherent)
+            if obs_mode=='SEARCH':
+                mode = "csearch" if pol=="AABBCRCI" else "incoh"
+            else: # Fold-mode data
+                if pol!="AABBCRCI" and pol!="IQUV":
+                    # subbanded incoh or polarization transformed cfold
+                    mode = "incoh" if dt > 5e-6 else "cfold"
+                else:
+                    # All coherent data should be AABBCRCI or IQUV
+                    mode = "csearch" if dt > 5e-6 else "cfold"
 
     pfb_fac = 2.0
-    if (opt.mode=="csearch" or opt.mode=="cfold"):
+    if (mode=="csearch" or mode=="cfold"):
         if (nchan==2048):
             pfb_fac = 2.0
         elif ((nchan==128) and (h['STT_IMJD']<55692 and 
@@ -83,10 +113,9 @@ for fname in args:
     be_delay = pfb_fac / orig_ch_bw # pfb corr in us. All modes get this
 
     # For coherent search modes, you need to add 1/2 chirp overlap
-    if opt.mode=='csearch':
+    if mode=='csearch':
         try:
             dm = float(h['CHAN_DM'])
-            rf = float(h['OBSFREQ'])
             # Overlap is returned in number of single-channel samples
             fftlen, overlap, blocsize = fft_size_params(rf, bw, nchan, dm)
             # Covert it to us
@@ -96,11 +125,8 @@ for fname in args:
         except ValueError: # Can't convert dm to float, likely.
             pass
 
-    if opt.value < 2e9: # explicitly set the value on command line
-        be_delay = opt.value
-    else:
-        be_delay *= 1e-6
-    print "%s: %d %.5e" % (fname, nchan, be_delay)
+    be_delay = be_delay * 1e-6 if opt.value is None else opt.value
+    print "%s: %s %.12g %d %.5e" % (fname, mode, rf, nchan, be_delay)
     f[0].write_key('BE_DELAY', be_delay, '[s] Updated')
     f.close()
 
