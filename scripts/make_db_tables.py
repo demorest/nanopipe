@@ -57,13 +57,13 @@ class dbProfile(object):
 
 
 # File extensions to consider
-exts = ['rf','cf','ff','norm','zap','calib']
+exts = ['rf','cf','ff','ffz','norm','zap','calib']
 
 # extension of raw files
 rawext = 'fits'
 
 # Version tag
-ver = '9y'
+ver = '11y'
 
 scan_re = re.compile('(.+)\.'+ver+'\.(.+)$')
 
@@ -98,7 +98,7 @@ for ext in exts:
                 d.processingType = 'polcal'
                 caltype = fullext[0]
                 d.processingFileName = 'polcal_%s.%s.txt' % (caltype,ver)
-                d.add_source(scan + '.rf')
+                d.add_source(scan + '.' + ver + '.rf')
 
             elif ext == 'zap':
                 d.processingType = 'zap'
@@ -116,6 +116,12 @@ for ext in exts:
                         'final_fscrunch.%s.txt,final_tscrunch.%s.txt' % (ver,
                                 ver)
                 d.add_source(base + '.zap')
+
+            elif ext == 'ffz':
+                d.processingType = 'toa_excision'
+                d.processingFileName = \
+                        'toa_excision.%s.txt' % (ver,)
+                d.add_source(base + '.ff')
 
             print d.loading_info() 
 
