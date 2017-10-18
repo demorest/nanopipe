@@ -15,7 +15,14 @@ for fname in sys.argv[1:]:
         print "%s: be_delay=%e, skipping" % (fname, h['BE_DELAY'])
         f.close()
         continue
-    orig_ch_bw = abs(h['OBSBW']) / h['OBSNCHAN']
+    obsnchan = h['OBSNCHAN']
+    if obsnchan==576:
+        obsnchan = 512
+        f[0].write_key('OBSNCHAN', obsnchan, 'Fixed')
+    if obsnchan==144:
+        obsnchan = 128
+        f[0].write_key('OBSNCHAN', obsnchan, 'Fixed')
+    orig_ch_bw = abs(h['OBSBW']) / obsnchan
     if 'GUPPI' in h['BACKEND'] and h['OBSNCHAN']==128 and \
             (h['STT_IMJD']<55692 and h['STT_IMJD']>55587):
                 be_delay = 8.0e-6 / orig_ch_bw / 2.0

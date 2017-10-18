@@ -1,2 +1,4 @@
+if ($be:name==GUPPI && $ext:obsnchan==576) e ext:obsnchan=512
+if ($be:name==GUPPI && $ext:obsnchan==144) e ext:obsnchan=128
 if (($be:name==GUPPI || $be:name==PUPPI) && fabs($ext:obsbw/$ext:obsnchan)==1.5625) e be:delay=3.84e-6
 if ($be:name==GUPPI && $ext:obsnchan==128 && $ext:stt_imjd<55692 && $ext:stt_imjd>55587 && fabs($ext:obsbw)==200) e be:delay=2.56e-6
