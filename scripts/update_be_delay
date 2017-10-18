@@ -3,18 +3,71 @@
 # Update BE_DELAY keyword for guppi/puppi files
 
 import sys, fitsio
+from optparse import OptionParser
 
-for fname in sys.argv[1:]:
+# From guppi2_utils.py
+def fft_size_params(rf,bw,nchan,dm,max_databuf_mb=128):
+    """
+    fft_size_params(rf,bw,nchan,dm,max_databuf_mb=128):
+        Returns a tuple of size parameters (fftlen, overlap, blocsize)
+        given the input rf (center of band), bw, nchan, 
+        DM, and optional max databuf size in MB.
+    """
+    # Overlap needs to be rounded to a integer number of packets
+    # This assumes 8-bit 2-pol data (4 bytes per samp) and 8
+    # processing nodes.  Also GPU folding requires fftlen-overlap 
+    # to be a multiple of 64.
+    # TODO: figure out best overlap for coherent search mode.  For
+    # now, make it a multiple of 512
+    pkt_size = 8192
+    bytes_per_samp = 4
+    node_nchan = nchan / 8
+    round_fac = pkt_size / bytes_per_samp / node_nchan
+    #if (round_fac<64):  round_fac=64
+    if (round_fac<512):  round_fac=512
+    rf_ghz = (rf - abs(bw)/2.0)/1.0e3
+    chan_bw = bw / nchan
+    overlap_samp = 8.3 * dm * chan_bw**2 / rf_ghz**3
+    overlap_r = round_fac * (int(overlap_samp)/round_fac + 1)
+    # Rough FFT length optimization based on GPU testing
+    fftlen = 16*1024
+    if overlap_r<=1024: fftlen=32*1024
+    elif overlap_r<=2048: fftlen=64*1024
+    elif overlap_r<=16*1024: fftlen=128*1024
+    elif overlap_r<=64*1024: fftlen=256*1024
+    while fftlen<2*overlap_r: fftlen *= 2
+    # Calculate blocsize to hold an integer number of FFTs
+    # Uses same assumptions as above
+    max_npts_per_chan = max_databuf_mb*1024*1024/bytes_per_samp/node_nchan
+    nfft = (max_npts_per_chan - overlap_r)/(fftlen - overlap_r)
+    npts_per_chan = nfft*(fftlen-overlap_r) + overlap_r
+    blocsize = int(npts_per_chan*node_nchan*bytes_per_samp)
+    return (fftlen, overlap_r, blocsize)
+
+par = OptionParser()
+par.add_option("-m", "--mode", action="store", dest="mode",
+        help="Obs mode (csearch, cfold, or incoh). Will attempt to auto-detect.")
+par.add_option("-f", "--force", action="store_true",
+        dest="force", default=False,
+        help="Force the over-writing of BE_DELAY")
+par.add_option("-v", "--value", type="float", dest="value",
+        help="Set BE_DELAY to this explicit value")
+(opt,args) = par.parse_args()
+mode = opt.mode
+
+for fname in args:
     f = fitsio.FITS(fname,'rw')
     h = f[0].read_header()
     if not 'UPPI' in h['BACKEND']:
         print "%s: backend='%s', skipping" % (fname, h['BACKEND'])
         f.close()
         continue
-    if h['BE_DELAY'] != 0.0:
+    if (h['BE_DELAY'] != 0.0) and (not opt.force):
         print "%s: be_delay=%e, skipping" % (fname, h['BE_DELAY'])
         f.close()
         continue
+
+    # Fixes a problem with some mislabeled GUPPI data files 
     obsnchan = h['OBSNCHAN']
     if obsnchan==576:
         obsnchan = 512
@@ -22,13 +75,69 @@ for fname in sys.argv[1:]:
     if obsnchan==144:
         obsnchan = 128
         f[0].write_key('OBSNCHAN', obsnchan, 'Fixed')
-    orig_ch_bw = abs(h['OBSBW']) / obsnchan
-    if 'GUPPI' in h['BACKEND'] and h['OBSNCHAN']==128 and \
-            (h['STT_IMJD']<55692 and h['STT_IMJD']>55587):
-                be_delay = 8.0e-6 / orig_ch_bw / 2.0
-    else:
-        be_delay = 12.0e-6 / orig_ch_bw / 2.0
-    print "%s: %d %.5e" % (fname, h['OBSNCHAN'], be_delay)
+
+    bw = float(abs(h['OBSBW']))
+    nchan = obsnchan
+    orig_ch_bw = bw / nchan
+    rf = float(h['OBSFREQ'])
+
+    # Now figure out the mode if we need to
+    if opt.mode is None:
+        # First, find the SUBINT HDU and get the sampling time.  This
+        # lets us tell the difference between csearch and cfold
+        obs_mode = h['OBS_MODE'].strip()
+        for hdu in f:
+            hdr = hdu.read_header()
+            if 'EXTNAME' in hdr:
+                if hdr['EXTNAME'].strip()=='SUBINT':
+                    dt = hdr['TBIN']
+                    pol = hdr['POL_TYPE'].strip()
+                    continue
+        dm = None
+        try:
+            dm = float(h['CHAN_DM'])
+        except ValueError: # Can't convert dm to float, therefore doesn't exist
+            pass
+        if dm is None: # No CHAN_DM, therefore incoherent
+            mode = "incoh"
+        else: # CHAN_DM is set (i.e. coherent, or subbanded incoherent)
+            if obs_mode=='SEARCH':
+                mode = "csearch" if pol=="AABBCRCI" else "incoh"
+            else: # Fold-mode data
+                if pol!="AABBCRCI" and pol!="IQUV":
+                    # subbanded incoh or polarization transformed cfold
+                    mode = "incoh" if dt > 5e-6 else "cfold"
+                else:
+                    # All coherent data should be AABBCRCI or IQUV
+                    mode = "csearch" if dt > 5e-6 else "cfold"
+
+    pfb_fac = 2.0
+    if (mode=="csearch" or mode=="cfold"):
+        if (nchan==2048):
+            pfb_fac = 2.0
+        elif ((nchan==128) and (h['STT_IMJD']<55692 and 
+                                h['STT_IMJD']>55587)):
+            pfb_fac = 4.0
+        else:
+            pfb_fac = 6.0
+    be_delay = pfb_fac / orig_ch_bw # pfb corr in us. All modes get this
+
+    # For coherent search modes, you need to add 1/2 chirp overlap
+    if mode=='csearch':
+        try:
+            dm = float(h['CHAN_DM'])
+            # Overlap is returned in number of single-channel samples
+            fftlen, overlap, blocsize = fft_size_params(rf, bw, nchan, dm)
+            # Covert it to us
+            overlap_us = float(overlap) / orig_ch_bw
+            # Add it to pfb delay
+            be_delay += 0.5 * overlap_us
+        except ValueError: # Can't convert dm to float, likely.
+            pass
+
+    be_delay = be_delay * 1e-6 if opt.value is None else opt.value
+    print "%s: %s %.12g %d %.5e" % (fname, mode, rf, nchan, be_delay)
+>>>>>>> 676b6217e56ef6a8f8f3e21cfa980b73bbdbf5b0
     f[0].write_key('BE_DELAY', be_delay, '[s] Updated')
     f.close()
 
