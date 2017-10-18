@@ -82,6 +82,10 @@ template_id = ""
 # Specify which cal method should be used for timing template
 template_cal_method = ""
 
+# Per-pulsar template info.  fill with tuples of backend, tag, and
+# cal method.  Otherwise will default to general settings above.
+template_settings = {}
+
 # Turn off rules to make templates
 build_templates = False
 
@@ -265,8 +269,12 @@ print cal_fail + ": "
 print "\t" + "touch " + cal_fail
 
 # Make the tscrunched cal files with cf extension
-print "%."+ver_id+".cf: %." + raw_ext + ("\n\tpam -e %s.cf -T --name `get_proper_name $<` $<" % ver_id)
-print "\tpsredit -m -c rcvr:name=`fix_receiver_name $@` $@"
+#print "%."+ver_id+".cf: %." + raw_ext + ("\n\tpam -e %s.cf -T --name `get_proper_name $<` $<" % ver_id)
+print "%."+ver_id+".cf: %." + raw_ext 
+print "\tpsradd -T " + tscrunch_arg \
+        + " -j \"e rcvr:name=`fix_receiver_name $<`\"" \
+        + " -j \"e name=`get_proper_name $<`\"" \
+        + " -o $@ $^" 
 print "\ttest -e $@ || echo $* >> " + cal_fail
 cfs = map(lambda x: x+'.cf', calscans)
 print ".PHONY: all cf calibration zap scrunch templates toas"
@@ -359,6 +367,12 @@ if build_templates:
     print "%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@"
     print "%.sm: %\n\tpsrsmooth -W -t UD8 $<"
 pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '/FORMAT/ {print $$0} ! /FORMAT/ {print $$0,\"-proc " + ver_id + " -pta NANOGrav\"}' >> $@"
+
+if srcname in template_settings.keys():
+    template_be = template_settings[srcname][0]
+    template_id = template_settings[srcname][1]
+    template_cal_method = template_settings[srcname][2]
+
 ## old ver:
 #if template_be=="":
 #    print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\t" + pat_cmd
