@@ -41,7 +41,8 @@ zap = {
 # Calibration method (pac options) to apply for each receiver
 # Multiple options per reciever can be specified.
 # 'default' is applied for receivers not explicitly listed. 
-cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
+#cal_methods = {'Rcvr1_2':['x','S'],'default':['x']}
+cal_methods = {'default':['x']}
 
 # Any additional options to pass to pac
 pac_args = '-Ta'
@@ -80,6 +81,10 @@ template_id = ""
 
 # Specify which cal method should be used for timing template
 template_cal_method = ""
+
+# Per-pulsar template info.  fill with tuples of backend, tag, and
+# cal method.  Otherwise will default to general settings above.
+template_settings = {}
 
 # Turn off rules to make templates
 build_templates = False
@@ -264,8 +269,12 @@ print cal_fail + ": "
 print "\t" + "touch " + cal_fail
 
 # Make the tscrunched cal files with cf extension
-print "%."+ver_id+".cf: %." + raw_ext + ("\n\tpam -e %s.cf -T --name `get_proper_name $<` $<" % ver_id)
-print "\tpsredit -m -c rcvr:name=`fix_receiver_name $@` $@"
+#print "%."+ver_id+".cf: %." + raw_ext + ("\n\tpam -e %s.cf -T --name `get_proper_name $<` $<" % ver_id)
+print "%."+ver_id+".cf: %." + raw_ext 
+print "\tpsradd -T " + tscrunch_arg \
+        + " -j \"e rcvr:name=`fix_receiver_name $<`\"" \
+        + " -j \"e name=`get_proper_name $<`\"" \
+        + " -o $@ $^" 
 print "\ttest -e $@ || echo $* >> " + cal_fail
 cfs = map(lambda x: x+'.cf', calscans)
 print ".PHONY: all cf calibration zap scrunch templates toas"
@@ -279,9 +288,21 @@ targets['calibration'].append(dbfile)
 
 # Make the combined .rf files
 parfile = srcname + ".basic.par"
-if os.path.exists(parfile): epharg = "-j 'install par " + parfile + "'"
-else: epharg = ""
+if os.path.exists(parfile): 
+    # If the .basic.par file exists, use it to realign all profiles
+    # and apply the DM found in there.
+    epharg = "-j 'install par " + parfile + "'"
+    try:
+        eph = psrchive.TextParameters()
+        psrchive.Parameters.load(eph,parfile)
+        dmarg = "-j \"e dm=%.6f\"" % float(eph.get_value('DM'))
+    except:
+        dmarg = ""
+else: 
+    epharg = ""
+    dmarg = ""
 print "%."+ver_id+".rf:\n\tpsradd -n " + fix_arg + " " + epharg \
+        + " " + dmarg \
         + " " + tscrunch_arg \
         + " -j \"e rcvr:name=`fix_receiver_name $<`\"" \
         + " -j \"e name=`get_proper_name $<`\"" \
@@ -327,7 +348,7 @@ print "\n%.zap: %." + calib_ext + 'P' + "\n\t " + zap_cmd
 targets['zap'].extend(map(lambda x: x+'.zap', all_calib_scans))
 
 # Normalize by off-pulse RMS
-print "\n%.norm: %.zap\n\tnormalize_rms $<"
+print "\n%.norm: %.zap\n\tnormalize_rms -w $<"
 targets['scrunch'].extend(map(lambda x: x+'.norm', all_calib_scans))
 
 # Make final partly scrunched version for TOAs, different scrunch
@@ -346,6 +367,12 @@ if build_templates:
     print "%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@"
     print "%.sm: %\n\tpsrsmooth -W -t UD8 $<"
 pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '/FORMAT/ {print $$0} ! /FORMAT/ {print $$0,\"-proc " + ver_id + " -pta NANOGrav\"}' >> $@"
+
+if srcname in template_settings.keys():
+    template_be = template_settings[srcname][0]
+    template_id = template_settings[srcname][1]
+    template_cal_method = template_settings[srcname][2]
+
 ## old ver:
 #if template_be=="":
 #    print "%.tim: %.sum.sm\n\techo 'MODE 1' > $@\n\t" + pat_cmd

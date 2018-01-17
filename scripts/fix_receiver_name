@@ -24,7 +24,9 @@ def get_rcvr_name(filename):
     arch = psrchive.Archive_load(filename)
     name_in_file = arch.get_receiver_name().strip()
     if arch.get_backend_name()=='PUPPI':
-        freq_name = name_from_freq(arch.get_centre_frequency())
+        nc = arch.get_nchan()
+        freq = arch[0].get_centre_frequency(nc/2)
+        freq_name = name_from_freq(freq)
         if freq_name != 'unknown': name_in_file = freq_name
     psrchive.Profile.no_amps.fset(no_amps_bak)
     return rcvr_name(name_in_file)
