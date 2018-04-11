@@ -95,6 +95,9 @@ toa_format = "tempo2 IPTA"
 # Any addtional args for pat
 toa_args = "-A FDM -e mcmc=0 -C chan -C subint -C snr -C wt"
 
+# Extra flag text to append to each TOA line
+toa_flags = ""
+
 # Allow any of these to be redefined in a local config file
 try:
     execfile(basedir + '/make_psr_make.config.py')
@@ -366,7 +369,7 @@ for r in rcvrnames:
 if build_templates:
     print "%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@"
     print "%.sm: %\n\tpsrsmooth -W -t UD8 $<"
-pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '/FORMAT/ {print $$0} ! /FORMAT/ {print $$0,\"-proc " + ver_id + " -pta NANOGrav\"}' >> $@"
+pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '/FORMAT/ {print $$0} ! /FORMAT/ {print $$0,\"-proc " + ver_id + " -pta NANOGrav " + toa_flags + "\"}' >> $@"
 
 if srcname in template_settings.keys():
     template_be = template_settings[srcname][0]
