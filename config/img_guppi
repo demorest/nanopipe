@@ -1,0 +1,10 @@
+# This script will distinguish between nanograv 820 and L-band.
+# Should only be applied to GUPPI data.
+
+# 820:
+if ($int[0]:freq[0]<1000.0) img dir=-1 fadc=900 fcenter=820
+if ($int[0]:freq[0]<1000.0) img correct 6.08e-05 {$ext:stt_imjd<56550 ? 4.533e-5 : 3.290e-5}
+
+# L-band:
+if ($int[0]:freq[0]>1000.0) img dir=-1 fadc=1200 fcenter=1500
+if ($int[0]:freq[0]>1000.0) img correct 4.62e-05 {$ext:stt_imjd<56550 ? 4.360e-5 : 3.724e-5}
