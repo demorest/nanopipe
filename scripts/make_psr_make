@@ -371,7 +371,9 @@ for r in rcvrnames:
 if build_templates:
     print "%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@"
     print "%.sm: %\n\tpsrsmooth -W -t UD8 $<"
-pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '/FORMAT/ {print $$0} ! /FORMAT/ {print $$0,\"-proc " + ver_id + " -pta NANOGrav " + toa_flags + "\"}' >> $@"
+#pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '/FORMAT/ {print $$0} ! /FORMAT/ {print $$0,\"-proc " + ver_id + " -pta NANOGrav " + toa_flags + "\"}' >> $@"
+flagtxt = "-proc " + ver_id + " -pta NANOGrav " + toa_flags
+pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -X \"" + flagtxt + "\" -s $^ >> $@"
 
 if srcname in template_settings.keys():
     template_be = template_settings[srcname][0]
