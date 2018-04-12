@@ -274,7 +274,9 @@ print "\t" + "touch " + cal_fail
 # Make the tscrunched cal files with cf extension
 #print "%."+ver_id+".cf: %." + raw_ext + ("\n\tpam -e %s.cf -T --name `get_proper_name $<` $<" % ver_id)
 print "%."+ver_id+".cf: %." + raw_ext 
-print "\tpsradd -T " + tscrunch_arg \
+print "\tpsradd -T " \
+        + fix_arg \
+        + " " + tscrunch_arg \
         + " -j \"e rcvr:name=`fix_receiver_name $<`\"" \
         + " -j \"e name=`get_proper_name $<`\"" \
         + " -o $@ $^" 
