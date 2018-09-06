@@ -137,7 +137,6 @@ for fname in args:
 
     be_delay = be_delay * 1e-6 if opt.value is None else opt.value
     print "%s: %s %.12g %d %.5e" % (fname, mode, rf, nchan, be_delay)
->>>>>>> 676b6217e56ef6a8f8f3e21cfa980b73bbdbf5b0
     f[0].write_key('BE_DELAY', be_delay, '[s] Updated')
     f.close()
 
