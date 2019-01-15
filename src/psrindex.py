@@ -113,6 +113,7 @@ class PSRIndex(object):
         self.file_filters = [
                 "guppi_*.fits",
                 "puppi_*.fits",
+                "vegas_*.fits",
                 "5????.*.asp",
                 "c??????.dat",
                 "ABPP_*.ar",

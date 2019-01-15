@@ -135,27 +135,33 @@ def get(d,k,default='default'):
 # Return the 'base' part of file name
 def basename(full):
     noext = full.replace('.'+raw_ext,'')
-    if noext.find('uppi') == -1:
+    if 'uppi' in noext:
+        # GUPPI/PUPPI case
+        parts = noext.split('_')
+        if parts[4] == 'cal':
+            return noext
+        else:
+            return string.join(parts[:4],'_')
+    elif 'vegas' in noext:
+        # VEGAS
+        parts = noext.split('_')
+        if parts[5] == 'cal':
+            return noext
+        else:
+            return string.join(parts[:5],'_')
+    else:
         return noext
-    parts = noext.split('_')
-    if parts[4] == 'cal': 
-        return noext
-    else: 
-        return string.join(parts[0:4],'_')
 
 # Return the full filename for 1st file in scan set
 def fullname(base):
-    if base.find('uppi') == -1:
-        return base + '.' + raw_ext
+    if ('uppi' in base or 'vegas' in base) and (not 'cal' in base):
+        return (sorted(glob.glob(base + "_????." + raw_ext)))[0]
     else:
-        if base.find('cal') == -1:
-            return (sorted(glob.glob(base + "_????." + raw_ext)))[0]
-        else:
-            return base + '.' + raw_ext
+        return base + '.' + raw_ext
 
 # Return whether a given input file is part of a given scan
 def scan_match(base,full):
-    if 'uppi' in base and not 'cal' in base:
+    if ('uppi' in base or 'vegas' in base) and not 'cal' in base:
         if 'cal' in full:
             return False
         else:
