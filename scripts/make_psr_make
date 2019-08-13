@@ -363,7 +363,7 @@ for r in rcvrnames:
             print "\ttest -e $< && (pac " + pac_args + " -" + c + " -e " + ext + " -d " + dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
             print "\ttest -e $@ && (paz -m -E2.0 " + z + " $@; rm $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
             if do_fluxcal:
-                print "\ttest -e $@ || rm $@P" # clean up .calibP files
+                print "\ttest -e $@ || rm -f $@P" # clean up .calibP files
         else:
             # For method 'N' (no calibration) just link to the rf file
             print "\ttest -e $< && ln -f -s $< $@"
