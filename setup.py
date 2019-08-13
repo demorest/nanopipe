@@ -13,5 +13,5 @@ setup(name='nanopipe',
       package_data={'nanopipe': ['data/psrjnames.dat','data/psrbnames.dat']},
       scripts=['scripts/make_psr_make', 'scripts/update_be_delay',
           'scripts/get_proper_name', 'scripts/fix_receiver_name',
-          'scripts/psrindex']
+          'scripts/get_parfile_coords', 'scripts/psrindex']
      )

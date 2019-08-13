@@ -1,0 +1,10 @@
+#! /usr/bin/env python
+from nanopipe import parfile_coords as pc
+
+if __name__=="__main__":
+    import sys
+    try:
+        fname = sys.argv[1]
+        print pc.get_parfile_coords(fname)
+    except:
+        sys.exit(1)

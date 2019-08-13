@@ -89,6 +89,12 @@ template_settings = {}
 # Turn off rules to make templates
 build_templates = False
 
+# Turn off to disable RMS normalization
+do_norm = True
+
+# Reset coordinates from par file
+fix_coords = False
+
 # Format as understood by "pat -f" for TOAs.
 toa_format = "tempo2 IPTA"
 
@@ -294,7 +300,10 @@ targets['calibration'].append('cf')
 dbfile = basedir + "/database.txt"
 
 # Update the psrchive cal database
-print dbfile + ": " + string.join(cfs) + "\n\tpac -w -p " + basedir
+if len(cfs)>0:
+    print dbfile + ": " + string.join(cfs) + "\n\tpac -w -p " + basedir
+else:
+    print dbfile + ": " + string.join(cfs) + "\n\ttouch $@"
 targets['calibration'].append(dbfile)
 
 # Make the combined .rf files
@@ -312,9 +321,14 @@ if os.path.exists(parfile):
 else: 
     epharg = ""
     dmarg = ""
+if fix_coords:
+    coord_arg = "-j \"e coord=`get_parfile_coords $<`\""
+else:
+    coord_arg = ""
 print "%."+ver_id+".rf:\n\tpsradd -n " + fix_arg + " " + epharg \
         + " " + dmarg \
         + " " + tscrunch_arg \
+        + " " + coord_arg \
         + " -j \"e rcvr:name=`fix_receiver_name $<`\"" \
         + " -j \"e name=`get_proper_name $<`\"" \
         + " -o $@ $^" 
@@ -336,6 +350,8 @@ for r in rcvrnames:
     for c in cm:
         if 'P' in c: do_fluxcal=False
         else: do_fluxcal=True
+        if 'N' in c: do_calib=False
+        else: do_calib=True
         ext = c + '.' + calib_ext
         extpac = ext
         if not do_fluxcal: extpac = ext + 'P'
@@ -343,10 +359,14 @@ for r in rcvrnames:
         calib_files = map(lambda x: x+'.'+extpac, rcvrscans[r])
         print "\n# Calibration for receiver '%s':" % (r)
         print string.join(calib_files)+": %."+extpac+": %.rf | cf "+ dbfile
-        print "\ttest -e $< && (pac " + pac_args + " -" + c + " -e " + ext + " -d " + dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
-        print "\ttest -e $@ && (paz -m -E2.0 " + z + " $@; rm $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
-        if do_fluxcal:
-            print "\ttest -e $@ || rm $@P" # clean up .calibP files
+        if do_calib:
+            print "\ttest -e $< && (pac " + pac_args + " -" + c + " -e " + ext + " -d " + dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
+            print "\ttest -e $@ && (paz -m -E2.0 " + z + " $@; rm $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail
+            if do_fluxcal:
+                print "\ttest -e $@ || rm $@P" # clean up .calibP files
+        else:
+            # For method 'N' (no calibration) just link to the rf file
+            print "\ttest -e $< && ln -f -s $< $@"
         targets['calibration'].extend(calib_files)
 
 all_calib_scans = []
@@ -359,8 +379,9 @@ print "\n%.zap: %." + calib_ext + 'P' + "\n\t " + zap_cmd
 targets['zap'].extend(map(lambda x: x+'.zap', all_calib_scans))
 
 # Normalize by off-pulse RMS
-print "\n%.norm: %.zap\n\tnormalize_rms -w $<"
-targets['scrunch'].extend(map(lambda x: x+'.norm', all_calib_scans))
+if do_norm:
+    print "\n%.norm: %.zap\n\tnormalize_rms -w $<"
+    targets['scrunch'].extend(map(lambda x: x+'.norm', all_calib_scans))
 
 # Make final partly scrunched version for TOAs, different scrunch
 # per rcvr
@@ -369,7 +390,8 @@ if final_tscrunch == "":
 for r in rcvrnames:
     files = map(lambda x: x+'.ff', calib_scans[r])
     f = get(fscrunch_arg,r)
-    print string.join(files)+": %.ff: %.norm\n\tpam -e ff "+f+" "+final_tscrunch+ " $<"
+    in_ext = 'norm' if do_norm else 'zap'
+    print string.join(files)+": %.ff: %."+in_ext+"\n\tpam -e ff "+f+" "+final_tscrunch+ " $<"
     targets['scrunch'].extend(files)
 
 # Generate template files and TOAs.
