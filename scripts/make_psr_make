@@ -155,12 +155,22 @@ def basename(full):
             return noext
         else:
             return string.join(parts[:5],'_')
+    elif '.AC' in noext or '.BD' in noext:
+        # VLA
+        parts = noext.split('.')
+        iparts = parts[-1].split('_')
+        if iparts[1]=='cal':
+            return noext
+        parts[-1] = string.join(iparts[:-1],'_')
+        return string.join(parts,'.')
     else:
         return noext
 
 # Return the full filename for 1st file in scan set
 def fullname(base):
     if ('uppi' in base or 'vegas' in base) and (not 'cal' in base):
+        return (sorted(glob.glob(base + "_????." + raw_ext)))[0]
+    elif ('.AC' in base or '.BD' in base) and (not '_cal_' in base):
         return (sorted(glob.glob(base + "_????." + raw_ext)))[0]
     else:
         return base + '.' + raw_ext
