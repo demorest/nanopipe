@@ -15,6 +15,7 @@ requirements:
     run:
         - python
         - psrchive
+        - sqlite
 
 test:
     imports:
