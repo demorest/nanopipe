@@ -14,6 +14,7 @@ requirements:
         - setuptools
     run:
         - python
+        - make
         - psrchive
         - sqlite
 
