@@ -425,12 +425,12 @@ if build_templates:
 #pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '/FORMAT/ {print $$0} ! /FORMAT/ {print $$0,\"-proc " + ver_id + " -pta NANOGrav " + toa_flags + "\"}' >> $@"
 flagtxt = "-proc " + ver_id + " -pta NANOGrav " + toa_flags
 #pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -X \"" + flagtxt + "\" -s $^ >> $@"
-pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -X \"" + flagtxt + "\" -s $< -M $(basename $@)." + list_ext + " >> $@"
+pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -X \"" + flagtxt + "\" -s $< -M $(basename $(basename $@))." + list_ext + " >> $@"
 
 # example pptoas:
 # pptoas.py -m [PP model (currently .spl)] -d [archive file (.ff)] -o [.tim file] --print_flux --flags=pta,NANOGrav,ver,0.1,proc,15y --quiet
 toa_flags_wb = ','.join(map(lambda x: x.lstrip('-'),toa_flags.split(' ')))
-pptoas_cmd = "pptoas.py --print_flux --quiet --flags=pta,NANOGrav,proc,%s,%s -m $< -d $(basename $@).%s -o $@" % (ver_id,toa_flags_wb,list_ext)
+pptoas_cmd = "pptoas.py --print_flux --quiet --flags=pta,NANOGrav,proc,%s,%s -m $< -d $(basename $(basename $@)).%s -o $@" % (ver_id,toa_flags_wb,list_ext)
 
 if srcname in template_settings.keys():
     template_be = template_settings[srcname][0]
@@ -458,12 +458,12 @@ if True:
         if template_cal_method=="": c_tmp=c
         else: c_tmp = template_cal_method
         tmp_id = "%s.%s.%s" % (template_be, template_id, c_tmp)
-        print ("%%.%s.tim: %%.%s.sum.sm\n\techo 'MODE 1' > $@\n\t" % (tim_id,tmp_id)) + pat_cmd
+        print ("%%.%s.nb.tim: %%.%s.sum.sm\n\techo 'MODE 1' > $@\n\t" % (tim_id,tmp_id)) + pat_cmd
 
         if wb_template_cal_method=="": c_tmp=c
         else: c_tmp = wb_template_cal_method
         tmp_id = "%s.%s.%s" % (wb_template_be, wb_template_id, c_tmp)
-        print ("%%.%s.wbtim: %%.%s.sum.ff.spl\n\techo 'MODE 1' > $@\n\t" % (tim_id,tmp_id)) + pptoas_cmd
+        print ("%%.%s.wb.tim: %%.%s.sum.ff.spl\n\techo 'MODE 1' > $@\n\t" % (tim_id,tmp_id)) + pptoas_cmd
 
         print 
 for r in rcvrnames:
@@ -490,12 +490,12 @@ for r in rcvrnames:
         fflist = id_str + '.' + list_ext
         targets[fflist] = profiles
 
-        toa = id_str + '.tim'
+        toa = id_str + '.nb.tim'
         targets['toas'].append(toa)
         targets[toa] = [fflist,]
 
         if do_wideband:
-            wbtoa = id_str + '.wbtim'
+            wbtoa = id_str + '.wb.tim'
             targets['toas'].append(wbtoa)
             targets[wbtoa] = [fflist,]
 
