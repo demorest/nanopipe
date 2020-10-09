@@ -58,7 +58,7 @@ mode = opt.mode
 for fname in args:
     f = fitsio.FITS(fname,'rw')
     h = f[0].read_header()
-    if not 'UPPI' in h['BACKEND']:
+    if not ('UPPI' in h['BACKEND'] or h['BACKEND'] == 'VEGAS'):
         print "%s: backend='%s', skipping" % (fname, h['BACKEND'])
         f.close()
         continue
@@ -110,33 +110,61 @@ for fname in args:
                 else:
                     # All coherent data should be AABBCRCI or IQUV
                     mode = "csearch" if dt > 5e-6 else "cfold"
+    if 'UPPI' in h['BACKEND']:
+        pfb_fac = 2.0
+        if (mode=="csearch" or mode=="cfold"):
+            if (nchan==2048):
+                pfb_fac = 2.0
+            elif ((nchan==128) and (h['STT_IMJD']<55692 and 
+                                    h['STT_IMJD']>55587)):
+                pfb_fac = 4.0
+            else:
+                pfb_fac = 6.0
+            be_delay = pfb_fac / orig_ch_bw # pfb corr in us. All modes get this
+            
+            # For coherent search modes, you need to add 1/2 chirp overlap
+            if mode=='csearch':
+                try:
+                    dm = float(h['CHAN_DM'])
+                    # Overlap is returned in number of single-channel samples
+                    fftlen, overlap, blocsize = fft_size_params(rf,bw,nchan,dm)
+                    # Covert it to us
+                    overlap_us = float(overlap) / orig_ch_bw
+                    # Add it to pfb delay
+                    be_delay += 0.5 * overlap_us
+                except ValueError: # Can't convert dm to float, likely.
+                    pass
+    elif h['BACKEND'] == "VEGAS":
+        # Corrections for VEGAS 100 and 200 MHz bandwidth modes
+        # These modes use a native sampled 800 MHz BW but only return
+        # nchan/8 or nchan/4 of the total number of channels
+        clock_rate = 100 if bw in (100,200) else bw/8
+        hw_nchan = int(nchan*800/bw) if bw in (100,200) else nchan
 
-    pfb_fac = 2.0
-    if (mode=="csearch" or mode=="cfold"):
-        if (nchan==2048):
-            pfb_fac = 2.0
-        elif ((nchan==128) and (h['STT_IMJD']<55692 and 
-                                h['STT_IMJD']>55587)):
-            pfb_fac = 4.0
+        # Number of taps provided by Jason Ray (jray@nrao.edu).  Most
+        # designs use 24.
+        if (mode == "cfold" or mode == "csearch") and hw_nchan == 1024:
+            ntaps = 12 # CODD 1024-channel modes use 12 taps for all bandwidths
+        elif mode == "incoh" and bw == 100:
+            if hw_nchan == 65536: 
+                ntaps = 4
+            elif hw_nchan == 32768 or hw_nchan == 16384: 
+                ntaps = 12
+            else: 
+                ntaps = 24
+        elif mode == "incoh" and bw == 200:
+            ntaps = 12
         else:
-            pfb_fac = 6.0
-    be_delay = pfb_fac / orig_ch_bw # pfb corr in us. All modes get this
-
-    # For coherent search modes, you need to add 1/2 chirp overlap
-    if mode=='csearch':
-        try:
-            dm = float(h['CHAN_DM'])
-            # Overlap is returned in number of single-channel samples
-            fftlen, overlap, blocsize = fft_size_params(rf, bw, nchan, dm)
-            # Covert it to us
-            overlap_us = float(overlap) / orig_ch_bw
-            # Add it to pfb delay
-            be_delay += 0.5 * overlap_us
-        except ValueError: # Can't convert dm to float, likely.
-            pass
-
+            ntaps = 24
+    
+        # Clock rate should be in MHz
+        # VEGAS PFB delays are opposite sign from GUPPI because of different
+        # behavior when the sync pulse hits the PFB
+        # This formula was provided by Luke Hawkins and was determined
+        # via manual inspection of the structure of the VEGAS PFBs
+        be_delay = -0.5*((ntaps-1)*(2**(np.log2(nchan)-3))+14)/clock_rate
+    
     be_delay = be_delay * 1e-6 if opt.value is None else opt.value
     print "%s: %s %.12g %d %.5e" % (fname, mode, rf, nchan, be_delay)
     f[0].write_key('BE_DELAY', be_delay, '[s] Updated')
     f.close()
-
