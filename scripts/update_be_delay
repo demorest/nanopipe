@@ -59,11 +59,11 @@ for fname in args:
     f = fitsio.FITS(fname,'rw')
     h = f[0].read_header()
     if not 'UPPI' in h['BACKEND']:
-        print "%s: backend='%s', skipping" % (fname, h['BACKEND'])
+        print("%s: backend='%s', skipping" % (fname, h['BACKEND']))
         f.close()
         continue
     if (h['BE_DELAY'] != 0.0) and (not opt.force):
-        print "%s: be_delay=%e, skipping" % (fname, h['BE_DELAY'])
+        print("%s: be_delay=%e, skipping" % (fname, h['BE_DELAY']))
         f.close()
         continue
 
@@ -136,7 +136,7 @@ for fname in args:
             pass
 
     be_delay = be_delay * 1e-6 if opt.value is None else opt.value
-    print "%s: %s %.12g %d %.5e" % (fname, mode, rf, nchan, be_delay)
+    print("%s: %s %.12g %d %.5e" % (fname, mode, rf, nchan, be_delay))
     f[0].write_key('BE_DELAY', be_delay, '[s] Updated')
     f.close()
 

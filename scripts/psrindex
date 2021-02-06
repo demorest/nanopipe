@@ -2,7 +2,7 @@
 
 # Command line interface to psrindex
 
-import os, sys, string
+import os, sys
 from nanopipe import psrindex
 
 from optparse import OptionParser
@@ -57,7 +57,7 @@ if len(opt.badlist)>=0:
 
     for badlist in opt.badlist:
         if opt.verbose:
-            print "Flagging bad files from '%s'" % (badlist,)
+            print("Flagging bad files from '%s'" % (badlist,))
         last_reason = ''
         for l in open(badlist).readlines():
             if l.startswith('#'):
@@ -69,7 +69,7 @@ if len(opt.badlist)>=0:
             except IndexError:
                 reason = ''
             if reason.strip() == '"': reason=last_reason
-            print "Bad: %s '%s'" % (fname, reason)
+            print("Bad: %s '%s'" % (fname, reason))
             db.flag_bad(fname,reason)
             last_reason = reason
 
@@ -85,7 +85,7 @@ if opt.diff_db is not None:
     fnames_diff = set(files_diff.keys())
 
     for fname in sorted(fnames_main.difference(fnames_diff)): 
-        print files_main[fname].full_path
+        print(files_main[fname].full_path)
 
 if opt.select or opt.link:
 
@@ -93,7 +93,7 @@ if opt.select or opt.link:
     db.verbose = opt.verbose
 
     if (opt.backend is None) or (opt.source is None):
-        print "Specify backend and source"
+        print("Specify backend and source")
         sys.exit(1)
 
     files = db.select('backend="%s" and source like "%%%s%%"' % (opt.backend, opt.source))
@@ -102,11 +102,11 @@ if opt.select or opt.link:
         base,ext = os.path.splitext(f.fname)
         if ext == ".cf": # Cal file, so adding cal to filename
           parts = base.split("_")
-          fitsname = string.join(parts[0:len(parts)-1],'_') + "_cal_" + parts[len(parts)-1]+ ".fits"
+          fitsname = str.join('_',parts[0:len(parts)-1]) + "_cal_" + parts[len(parts)-1]+ ".fits"
         else:
           fitsname = base + ".fits"
         if opt.select:
-            print f.full_path
+            print(f.full_path)
         if opt.link:
             if not os.path.lexists(fitsname):
                 os.symlink(f.full_path, './'+fitsname)

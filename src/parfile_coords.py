@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-import os, string
+import os
 
 # load psrchive, set it to not load full data from the files
 import psrchive
@@ -50,4 +50,4 @@ def get_parfile_coords(filename):
 if __name__=="__main__":
     import sys
     fname = sys.argv[1]
-    print get_parfile_coords(fname)
+    print(get_parfile_coords(fname))

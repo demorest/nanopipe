@@ -61,7 +61,7 @@ for n in range(0,nsub):
         break
 #      print f1,fwant
     if counterpart == False:
-      print "Didn't find counterpart frequency for %f" % f0
+      print("Didn't find counterpart frequency for %f" % f0)
       sub.set_weight(i,0.0)
       continue
 #    else:

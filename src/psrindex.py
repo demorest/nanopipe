@@ -5,7 +5,6 @@
 
 import os
 import sys
-import string
 import fnmatch
 from collections import namedtuple
 import sqlite3
@@ -44,7 +43,7 @@ _infotypes = {
 
 # Use a list to make sure order doesn't change.  
 # Could use OrderedDict instead
-_infofields = _infotypes.keys()
+_infofields = list(_infotypes.keys())
 
 class PSRFile(namedtuple('PSRFile', _infofields)):
     """This class represents a single raw data file."""
@@ -137,7 +136,7 @@ class PSRIndex(object):
                         out.append(os.path.join(path,fname))
                     else:
                         if self.verbose: 
-                            print "Warning: file name collision %s" % fname
+                            print("Warning: file name collision %s" % fname)
         return out
 
     def add_file(self, fname_path, replace=False, commit=True):
@@ -149,14 +148,14 @@ class PSRIndex(object):
             self.cur.execute("select * from files where fname=?",(fname,))
             if self.cur.fetchone() != None: 
                 # file exists
-                if self.verbose: print "File exists: %s" % fname
+                if self.verbose: print("File exists: %s" % fname)
                 return
         info = PSRFile._fromfile(fname_path)
-        if self.verbose: print "Adding: %s" % info.fname
+        if self.verbose: print("Adding: %s" % info.fname)
         qry = "insert into files (" \
-                + string.join(_infofields,', ') \
+                + str.join(', ',_infofields) \
                 + ") values (" \
-                + string.join(map(lambda x: ':'+x, _infofields),', ') +")"
+                + str.join(', ',[':'+x for x in _infofields]) +")"
         self.cur.execute(qry, info._asdict())
         if commit: self.db.commit()
 
@@ -186,7 +185,7 @@ class PSRIndex(object):
             else:
                 qry += where
         qry += " order by mjd"
-        if self.verbose: print qry
+        if self.verbose: print(qry)
         self.cur.execute(qry)
         if as_dict:
             output = {}

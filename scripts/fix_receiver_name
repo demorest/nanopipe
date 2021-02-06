@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-import string
 
 # load psrchive, set it to not load full data from the files
 import psrchive
@@ -35,6 +34,6 @@ if __name__=="__main__":
     import sys
     try:
         fname = sys.argv[1]
-        print get_rcvr_name(fname)
+        print(get_rcvr_name(fname))
     except:
         sys.exit(1)

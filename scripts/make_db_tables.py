@@ -123,7 +123,7 @@ for ext in exts:
                         'toa_excision.%s.txt' % (ver,)
                 d.add_source(base + '.ff')
 
-            print d.loading_info() 
+            print(d.loading_info()) 
 
 
 

@@ -5,9 +5,9 @@ if __name__=="__main__":
     import sys
     try:
         fname = sys.argv[1]
-        print gpn.get_proper_name(fname)
+        print(gpn.get_proper_name(fname))
     except IndexError:
         for psr in sys.stdin.readlines():
-            print gpn.proper_name(psr.rstrip())
+            print(gpn.proper_name(psr.rstrip()))
     except:
         sys.exit(1)

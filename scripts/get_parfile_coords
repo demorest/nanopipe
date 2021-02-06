@@ -5,6 +5,6 @@ if __name__=="__main__":
     import sys
     try:
         fname = sys.argv[1]
-        print pc.get_parfile_coords(fname)
+        print(pc.get_parfile_coords(fname))
     except:
         sys.exit(1)

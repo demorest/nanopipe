@@ -1,13 +1,13 @@
 #! /usr/bin/env python
-import os, string
+import os
 
 # load psrchive, set it to not load full data from the files
 import psrchive
 
 # Read in the name lists
 datadir = os.path.dirname(__file__) + '/data'
-psrbnames = map(string.rstrip,open(datadir+'/psrbnames.dat').readlines())
-psrjnames = map(string.rstrip,open(datadir+'/psrjnames.dat').readlines())
+psrbnames = list(map(str.rstrip,open(datadir+'/psrbnames.dat').readlines()))
+psrjnames = list(map(str.rstrip,open(datadir+'/psrjnames.dat').readlines()))
 
 # The list of official names
 psrnames = [
@@ -75,9 +75,9 @@ if __name__=="__main__":
     import sys
     try:
         fname = sys.argv[1]
-        print get_proper_name(fname)
+        print(get_proper_name(fname))
     except IndexError:
         for psr in sys.stdin.readlines():
-            print proper_name(psr.rstrip())
+            print(proper_name(psr.rstrip()))
     except:
         sys.exit(1)
