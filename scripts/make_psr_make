@@ -201,7 +201,7 @@ def scan_match(base,full):
 def fix_rcvr_name(archive):
     if archive.get_backend_name()=='PUPPI':
         nc = archive.get_nchan()
-        freq = archive[0].get_centre_frequency(nc/2)
+        freq = archive[0].get_centre_frequency(nc//2)
         if (freq<400.0): return '327'
         if (freq<500.0): return '430'
         if (freq<1900.0): return 'L-wide'

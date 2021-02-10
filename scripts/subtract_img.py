@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 def smear_profile(prof,fac):
     nb = len(prof)
     bmax = int(1.0/fac/2.0)
-    if bmax>nb/2: bmax=nb/2
+    if bmax>nb/2: bmax=nb//2
     fprof = rfft(prof)
     fprof[bmax:] = 0.0
     return irfft(fprof)

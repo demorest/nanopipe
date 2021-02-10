@@ -21,14 +21,14 @@ def fft_size_params(rf,bw,nchan,dm,max_databuf_mb=128):
     # now, make it a multiple of 512
     pkt_size = 8192
     bytes_per_samp = 4
-    node_nchan = nchan / 8
-    round_fac = pkt_size / bytes_per_samp / node_nchan
+    node_nchan = nchan // 8
+    round_fac = pkt_size // bytes_per_samp // node_nchan
     #if (round_fac<64):  round_fac=64
     if (round_fac<512):  round_fac=512
     rf_ghz = (rf - abs(bw)/2.0)/1.0e3
     chan_bw = bw / nchan
     overlap_samp = 8.3 * dm * chan_bw**2 / rf_ghz**3
-    overlap_r = round_fac * (int(overlap_samp)/round_fac + 1)
+    overlap_r = round_fac * (int(overlap_samp)//round_fac + 1)
     # Rough FFT length optimization based on GPU testing
     fftlen = 16*1024
     if overlap_r<=1024: fftlen=32*1024
@@ -38,8 +38,8 @@ def fft_size_params(rf,bw,nchan,dm,max_databuf_mb=128):
     while fftlen<2*overlap_r: fftlen *= 2
     # Calculate blocsize to hold an integer number of FFTs
     # Uses same assumptions as above
-    max_npts_per_chan = max_databuf_mb*1024*1024/bytes_per_samp/node_nchan
-    nfft = (max_npts_per_chan - overlap_r)/(fftlen - overlap_r)
+    max_npts_per_chan = max_databuf_mb*1024*1024//bytes_per_samp//node_nchan
+    nfft = (max_npts_per_chan - overlap_r)//(fftlen - overlap_r)
     npts_per_chan = nfft*(fftlen-overlap_r) + overlap_r
     blocsize = int(npts_per_chan*node_nchan*bytes_per_samp)
     return (fftlen, overlap_r, blocsize)
