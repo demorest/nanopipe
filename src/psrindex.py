@@ -6,7 +6,7 @@
 import os
 import sys
 import fnmatch
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 import sqlite3
 
 # Note, need to be careful about setting/re-setting no_amps
@@ -29,20 +29,17 @@ class psrchive_no_amps(object):
 
 
 # dict of info to store and their sql type defs
-_infotypes = {
-        "fname": "text unique", # file name 
-        "path": "text",         # path to file
-        "source": "text",       # source name
-        "rcvr": "text",         # receiver name
-        "backend": "text",      # backend name
-        "type": "text",         # pulsar/cal/etc
-        "mjd": "real",          # MJD
-        "bad": "int",           # bad file flag
-        "reason": "text"        # reason for badness
-        }
+_infotypes = OrderedDict()
+_infotypes["fname"]   = "text unique" # file name 
+_infotypes["path"]    = "text"        # path to file
+_infotypes["source"]  = "text"        # source name
+_infotypes["rcvr"]    = "text"        # receiver name
+_infotypes["backend"] = "text"        # backend name
+_infotypes["type"]    = "text"        # pulsar/cal/etc
+_infotypes["mjd"]     = "real"        # MJD
+_infotypes["bad"]     = "int"         # bad file flag
+_infotypes["reason"]  = "text"        # reason for badness
 
-# Use a list to make sure order doesn't change.  
-# Could use OrderedDict instead
 _infofields = list(_infotypes.keys())
 
 class PSRFile(namedtuple('PSRFile', _infofields)):
