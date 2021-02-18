@@ -39,6 +39,11 @@ zap = {
         'default':''
     }
 
+# Additional zapping (paz args) applied to specific files.  Keys
+# should be base scan names (no extension).  This is applied
+# to the calibrated files.
+extra_zap = {}
+
 # Calibration method (pac options) to apply for each receiver
 # Multiple options per reciever can be specified.
 # 'default' is applied for receivers not explicitly listed. 
@@ -362,6 +367,7 @@ for sc in psrscans:
 # Also note that we don't track which specific cal files each scan
 # depends on.  Instead, the 'order-only' cf prereq makes sure all the
 # cal scans are processed before any psr scans are calibrated.
+print("\nXPAZ = ") # default to no extra zapping
 calib_scans = {}
 for r in rcvrnames:
     cm = get(cal_methods,r)
@@ -378,10 +384,15 @@ for r in rcvrnames:
         calib_scans[r].extend([x+'.'+c for x in rcvrscans[r]])
         calib_files = [x+'.'+extpac for x in rcvrscans[r]]
         print("\n# Calibration for receiver '%s':" % (r))
+        # Print out file-specific zap commands here
+        for i, x in enumerate(rcvrscans[r]):
+            xb = x.replace('.'+ver_id,'')
+            if xb in extra_zap.keys():
+                print(calib_files[i] + ": XPAZ = " + extra_zap[xb])
         print(str.join(' ',calib_files)+": %."+extpac+": %.rf | cf "+ dbfile)
         if do_calib:
             print("\ttest -e $< && (pac " + pac_args + " -" + c + " -e " + ext + " -d " + dbfile + " $< 2>&1 | tee $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail)
-            print("\ttest -e $@ && (paz -m -E2.0 " + z + " $@; rm $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail)
+            print("\ttest -e $@ && (paz -m -E2.0 " + z + " $(XPAZ) $@; rm $@.pac.log) || echo $* | sed 's/."+ver_id+"$$//' >> " + cal_fail)
             if do_fluxcal:
                 print("\ttest -e $@ || rm -f $@P") # clean up .calibP files
         else:
