@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='nanopipe',
-      version='1.2.2',
+      version='1.2.3',
       description='NANOGrav calibration and TOA pipeline',
       author='Paul Demorest',
       author_email='pdemores@nrao.edu',

@@ -116,6 +116,9 @@ toa_args = "-A FDM -e mcmc=0 -C chan -C subint -C snr -C wt"
 # Extra flag text to append to each TOA line
 toa_flags = ""
 
+# Extra flag text per receiver
+rcvr_toa_flags = {}
+
 # Compute wide-band TOAs
 do_wideband = False
 
@@ -434,15 +437,26 @@ print("%." + list_ext + ":\n\trm -f $@; for f in $^; do echo $$f >> $@; done")
 if build_templates:
     print("%.sum:\n\tautotoa -g0.1 -i3 -S $@ $^\n\tpam -r0.5 -m $@")
     print("%.sm: %\n\tpsrsmooth -W -t UD8 $<")
-#pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -s $^ | awk '/FORMAT/ {print $$0} ! /FORMAT/ {print $$0,\"-proc " + ver_id + " -pta NANOGrav " + toa_flags + "\"}' >> $@"
 flagtxt = "-proc " + ver_id + " -pta NANOGrav " + toa_flags
-#pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -X \"" + flagtxt + "\" -s $^ >> $@"
-pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -X \"" + flagtxt + "\" -s $< -M $(basename $(basename $@))." + list_ext + " >> $@"
+pat_cmd = "pat " + toa_args + " -f \"" + toa_format + "\" -X \"" + flagtxt + " $(XFLAG)\" -s $< -M $(basename $(basename $@))." + list_ext + " >> $@"
+
+def pptoa_flags(txt):
+    """Convert flag text to pptoas command line args"""
+    stuff = txt.split()
+    # We need an even number of items
+    if len(stuff) % 2:
+        raise RuntimeError("Invalid flag text: '" + txt + "'")
+    # Strip leading dash from flag names (not values)
+    for i in range(0,len(stuff),2):
+        stuff[i] = stuff[i].lstrip('-')
+    return str.join(',',stuff)
 
 # example pptoas:
 # pptoas.py -m [PP model (currently .spl)] -d [archive file (.ff)] -o [.tim file] --print_flux --flags=pta,NANOGrav,ver,0.1,proc,15y --quiet
-toa_flags_wb = ','.join([x.lstrip('-') for x in toa_flags.split(' ')])
-pptoas_cmd = "pptoas.py --print_flux --quiet --flags=pta,NANOGrav,proc,%s,%s -m $< -d $(basename $(basename $@)).%s -o $@" % (ver_id,toa_flags_wb,list_ext)
+#toa_flags_wb = ','.join([x.lstrip('-') for x in toa_flags.split(' ')])
+#pptoas_cmd = "pptoas.py --print_flux --quiet --flags=pta,NANOGrav,proc,%s,%s -m $< -d $(basename $(basename $@)).%s -o $@" % (ver_id,toa_flags_wb,list_ext)
+toa_flags_wb = pptoa_flags(flagtxt)
+pptoas_cmd = "pptoas.py --print_flux --quiet --flags=%s$(XFLAG) -m $< -d $(basename $(basename $@)).%s -o $@" % (toa_flags_wb,list_ext)
 
 if srcname in list(template_settings.keys()):
     template_be = template_settings[srcname][0]
@@ -475,9 +489,12 @@ if True:
         if wb_template_cal_method=="": c_tmp=c
         else: c_tmp = wb_template_cal_method
         tmp_id = "%s.%s.%s" % (wb_template_be, wb_template_id, c_tmp)
-        print(("%%.%s.wb.tim: %%.%s.sum.ff.spl\n\techo 'MODE 1' > $@\n\t" % (tim_id,tmp_id)) + pptoas_cmd)
+        print(("%%.%s.wb.tim: %%.%s.sum.ff.spl\n\techo -e 'FORMAT 1\\nMODE 1' > $@\n\t" % (tim_id,tmp_id)) + pptoas_cmd)
 
         print("") 
+
+# default rcvr-specific flags to blank
+print("\nXFLAG = ")
 
 for r in rcvrnames:
     cm = get(cal_methods,r)
@@ -507,10 +524,19 @@ for r in rcvrnames:
         targets['toas'].append(toa)
         targets[toa] = [fflist,]
 
+        # Add receiver-specific TOA flags
+        if r in rcvr_toa_flags:
+            print(toa + ": XFLAG = " + rcvr_toa_flags[r])
+
         if do_wideband:
             wbtoa = id_str + '.wb.tim'
             targets['toas'].append(wbtoa)
             targets[wbtoa] = [fflist,]
+
+            # Receiver-specific flags
+            if r in rcvr_toa_flags:
+                txt = pptoa_flags(rcvr_toa_flags[r])
+                print(wbtoa + ": XFLAG = ," + txt)
 
 
 # Print all the dependencies
