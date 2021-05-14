@@ -16,6 +16,12 @@ args = par.parse_args()
 
 ta = psrchive.TimeAppend()
 ta.chronological = True
+# This isn't available right now..
+#if args.fpatch:
+#    fpatch = psrchive.PatchFrequency()
+#else:
+#    fpatch = None
+fpatch = None
 
 fa = psrchive.FrequencyAppend()
 patch = psrchive.PatchTime()
@@ -53,7 +59,10 @@ for bb in files.keys():
             tot[bb] = arch.clone()
             ta.init(tot[bb])
         else:
+            if fpatch is not None:
+                fpatch.operate(tot[bb], arch)
             ta.append(tot[bb], arch)
+
 
 # Freq dir
 out = None
