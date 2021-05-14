@@ -122,6 +122,9 @@ rcvr_toa_flags = {}
 # Compute wide-band TOAs
 do_wideband = False
 
+# The psradd command
+psradd = "psradd"
+
 # Allow any of these to be redefined in a local config file
 try:
     exec(compile(open(basedir + '/make_psr_make.config.py', "rb").read(), basedir + '/make_psr_make.config.py', 'exec'))
@@ -176,11 +179,12 @@ def basename(full):
     elif '.AC' in noext or '.BD' in noext:
         # VLA
         parts = noext.split('.')
-        iparts = parts[-1].split('_')
-        if iparts[1]=='cal':
-            return noext
-        parts[-1] = str.join('_',iparts[:-1])
-        return str.join('.',parts)
+        #iparts = parts[-1].split('_')
+        #if iparts[1]=='cal':
+        #    return noext
+        #parts[-1] = str.join('_',iparts[:-1])
+        #return str.join('.',parts)
+        return str.join('.',parts[:-1])
     else:
         return noext
 
@@ -188,10 +192,12 @@ def basename(full):
 def fullname(base):
     if ('uppi' in base or 'vegas' in base) and (not 'cal' in base):
         return (sorted(glob.glob(base + "_????." + raw_ext)))[0]
-    elif ('.AC' in base or '.BD' in base) and (not '_cal_' in base):
-        return (sorted(glob.glob(base + "_????." + raw_ext)))[0]
     else:
-        return base + '.' + raw_ext
+        return (sorted(glob.glob(base + "*." + raw_ext)))[0]
+    #elif ('.AC' in base or '.BD' in base) and (not '_cal_' in base):
+    #    return (sorted(glob.glob(base + "_????." + raw_ext)))[0]
+    #else:
+    #    return base + '.' + raw_ext
 
 # Return whether a given input file is part of a given scan
 def scan_match(base,full):
@@ -313,8 +319,9 @@ print("\t" + "touch " + cal_fail)
 
 # Make the tscrunched cal files with cf extension
 #print "%."+ver_id+".cf: %." + raw_ext + ("\n\tpam -e %s.cf -T --name `get_proper_name $<` $<" % ver_id)
-print("%."+ver_id+".cf: %." + raw_ext) 
-print("\tpsradd -T " \
+#print("%."+ver_id+".cf: %." + raw_ext) 
+print("%."+ver_id+".cf:")
+print("\t" + psradd + " -T " \
         + fix_arg \
         + " " + tscrunch_arg \
         + " -j \"e rcvr:name=`fix_receiver_name $<`\"" \
@@ -325,9 +332,11 @@ cfs = [x+'.cf' for x in calscans]
 print(".PHONY: all cf calibration zap scrunch templates toas")
 targets['cf'] = cfs
 targets['calibration'].append('cf')
-dbfile = "database.txt"
+for sc in calscans:
+    targets[sc+'.cf'] = sorted([x for x in inputs if scan_match(sc,x)])
 
 # Update the psrchive cal database
+dbfile = "database.txt"
 if len(cfs)>0:
     print(dbfile + ": " + str.join(' ',cfs) + "\n\tpac -w")
 else:
@@ -353,7 +362,7 @@ if fix_coords:
     coord_arg = "-j \"e coord=`get_parfile_coords $<`\""
 else:
     coord_arg = ""
-print("%."+ver_id+".rf:\n\tpsradd -n " + fix_arg + " " + epharg \
+print("%."+ver_id+".rf:\n\t" + psradd + " -n " + fix_arg + " " + epharg \
         + " " + dmarg \
         + " " + tscrunch_arg \
         + " " + coord_arg \
