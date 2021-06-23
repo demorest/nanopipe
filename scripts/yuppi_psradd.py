@@ -16,12 +16,10 @@ args = par.parse_args()
 
 ta = psrchive.TimeAppend()
 ta.chronological = True
-# This isn't available right now..
-#if args.fpatch:
-#    fpatch = psrchive.PatchFrequency()
-#else:
-#    fpatch = None
-fpatch = None
+if args.fpatch:
+    fpatch = psrchive.PatchFrequency()
+else:
+    fpatch = None
 
 fa = psrchive.FrequencyAppend()
 patch = psrchive.PatchTime()
@@ -33,8 +31,6 @@ for fname in args.files:
     if not bb in files.keys():
         files[bb] = []
     files[bb].append(fname)
-
-# TODO deal with fpatch
 
 # Preprocessing and time dir first
 tot = {}
@@ -60,6 +56,7 @@ for bb in files.keys():
             ta.init(tot[bb])
         else:
             if fpatch is not None:
+                print("  fpatch")
                 fpatch.operate(tot[bb], arch)
             ta.append(tot[bb], arch)
 
