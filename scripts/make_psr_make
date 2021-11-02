@@ -113,6 +113,9 @@ toa_format = "tempo2 IPTA"
 # Any addtional args for pat
 toa_args = "-A FDM -e mcmc=0 -C chan -C subint -C snr -C wt"
 
+# Any additional args for pptoas.py
+wb_toa_args = "--print_flux --quiet"
+
 # Extra flag text to append to each TOA line
 toa_flags = ""
 
@@ -465,7 +468,7 @@ def pptoa_flags(txt):
 #toa_flags_wb = ','.join([x.lstrip('-') for x in toa_flags.split(' ')])
 #pptoas_cmd = "pptoas.py --print_flux --quiet --flags=pta,NANOGrav,proc,%s,%s -m $< -d $(basename $(basename $@)).%s -o $@" % (ver_id,toa_flags_wb,list_ext)
 toa_flags_wb = pptoa_flags(flagtxt)
-pptoas_cmd = "pptoas.py --print_flux --quiet --flags=%s$(XFLAG) -m $< -d $(basename $(basename $@)).%s -o $@" % (toa_flags_wb,list_ext)
+pptoas_cmd = "pptoas.py " + wb_toa_args + " --flags=%s$(XFLAG) -m $< -d $(basename $(basename $@)).%s -o $@" % (toa_flags_wb,list_ext)
 
 if srcname in list(template_settings.keys()):
     template_be = template_settings[srcname][0]
